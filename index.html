@@ -1,0 +1,1272 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Rompehielo en Linea</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><circle cx=%2250%22 cy=%2250%22 r=%2240%22 fill=%22%2300d9e6%22/></svg>">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body { background:#02060c; overflow-x:hidden; }
+  #root { min-height:100vh; }
+</style>
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel" data-presets="react">
+const { useState, useEffect, useCallback } = React;
+
+
+
+const NEON = {
+  pink:'#ff2d78',
+  cyan:'#00d9e6',
+  cyan2:'#5ee9f0',
+  purple:'#bf5fff',
+  green:'#39ff14',
+  yellow:'#ffe600',
+  gold:'#e8c275',
+  gold2:'#f9e4a8',
+  goldDark:'#a87a2e'
+};
+const GRADIENTS = [
+  'linear-gradient(135deg,#e8c275,#f9e4a8)',
+  'linear-gradient(135deg,#00d9e6,#5ee9f0)',
+  'linear-gradient(135deg,#bf5fff,#00d9e6)',
+  'linear-gradient(135deg,#e8c275,#00d9e6)',
+  'linear-gradient(135deg,#5ee9f0,#bf5fff)',
+];
+const getGrad = n => GRADIENTS[(n?.charCodeAt(0)||0) % GRADIENTS.length];
+
+// ── CONEXIÓN A SUPABASE (base de datos en la nube) ──
+const SUPABASE_URL = 'https://xgbbmhrfxxvbnzxcodwe.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_qbCeuUBTiHD9lTQmist90g_GjFCAdU9';
+
+// ── CONFIGURACIÓN DE ACCESO ──
+const ACCESS_CODE = 'NOCHE2026';    // código único — el portero lo digita en el celular de cada cliente (cámbialo)
+const RESET_KEY   = 'BORRAR123';    // clave para reiniciar todos los perfiles (solo tú la conoces)
+const OWNER_KEY   = 'DUENO789';     // clave del Panel de Dueño (solo tú la conoces)
+const SEATS = ['A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T'];  // puestos dentro de una misma mesa
+const NEQUI_NUMBER = '3184890288';  // número Nequi para recibir pagos
+const ENTRY_PRICE  = '$5.000';      // precio de la entrada
+
+// ── ORIENTACIÓN ──
+const ORIENTATIONS = [
+  { id:'hetero', label:'Heterosexual', emoji:'⚥' },
+  { id:'gay',    label:'Gay',          emoji:'🌈' },
+  { id:'bi',     label:'Bisexual',     emoji:'💗' },
+];
+
+const LOOKING = [
+  { id:'bailar',  emoji:'💃', label:'Bailar',    color:NEON.pink,   shadow:'rgba(255,45,120,0.6)' },
+  { id:'copa',    emoji:'🥂', label:'Una copa',  color:NEON.cyan,   shadow:'rgba(0,217,230,0.6)'  },
+  { id:'charlar', emoji:'💬', label:'Charlar',   color:NEON.purple, shadow:'rgba(191,95,255,0.6)' },
+];
+
+const glass = { background:'rgba(10,15,25,0.55)', border:'1px solid rgba(232,194,117,0.25)', borderRadius:16, backdropFilter:'blur(14px)' };
+const base  = { minHeight:'100vh', background:'#02060c', color:'#fff', fontFamily:'"Cormorant Garamond","Playfair Display",Georgia,serif', position:'relative' };
+
+const inp = { width:'100%', background:'rgba(10,15,25,.6)', border:'1px solid rgba(232,194,117,.3)', borderRadius:12, padding:'.85rem 1rem', color:'#fff', fontSize:'.95rem', outline:'none', boxSizing:'border-box', fontFamily:'Inter,sans-serif' };
+
+// ── FONDO UNIVERSO: estrellas + nebulosa sutil ──
+function NeonBg() {
+  // Estrellas con posiciones determinísticas distribuidas por la pantalla
+  const stars = [
+    ...Array.from({length:70},(_,i)=>({
+      x: (i*37 + 13) % 100,
+      y: (i*53 + 7) % 100,
+      r: 0.08 + ((i*17) % 10) / 100,
+      o: 0.3 + ((i*23) % 60) / 100,
+      delay: (i*0.3) % 4
+    })),
+    ...Array.from({length:18},(_,i)=>({
+      x: (i*73 + 29) % 100,
+      y: (i*41 + 19) % 100,
+      r: 0.18 + ((i*11) % 8) / 50,
+      o: 0.7 + ((i*7) % 30) / 100,
+      delay: (i*0.5) % 5,
+      bright: true
+    })),
+  ];
+  return <>
+    <style>{`
+      @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Inter:wght@400;500;600;700;800;900&display=swap');
+      @keyframes ncSpin { 0%{transform:rotate(0)} 100%{transform:rotate(360deg)} }
+      @keyframes ncTwinkle { 0%,100%{opacity:var(--o,.5)} 50%{opacity:.1} }
+      @keyframes ncDrift { 0%,100%{transform:translate(0,0)} 50%{transform:translate(12px,-10px)} }
+      @keyframes ncFloat { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-10px)} }
+      @keyframes ncGlowPulse { 0%,100%{opacity:.55;transform:scale(.95)} 50%{opacity:1;transform:scale(1.08)} }
+      @keyframes ncFacet { 0%,100%{opacity:.6} 50%{opacity:1} }
+      @keyframes ncSparkle { 0%,100%{opacity:0;transform:scale(.3)} 50%{opacity:1;transform:scale(1)} }
+      @keyframes ncFadeUp { 0%{opacity:0;transform:translateY(20px)} 100%{opacity:1;transform:translateY(0)} }
+    `}</style>
+    {/* Cielo profundo del espacio */}
+    <div style={{position:'fixed',inset:0,background:'radial-gradient(ellipse at 50% 35%, #0d1a35 0%, #060a1a 38%, #02040a 78%, #010205 100%)',zIndex:0,pointerEvents:'none'}}/>
+
+    {/* Nebulosa azul-violeta arriba a la izquierda */}
+    <div style={{position:'fixed',top:'-12%',left:'-18%',width:'75vw',height:'75vw',maxWidth:900,maxHeight:900,background:'radial-gradient(ellipse,rgba(70,90,200,.16) 0%,rgba(100,60,180,.07) 35%,transparent 65%)',pointerEvents:'none',zIndex:1,filter:'blur(45px)',animation:'ncDrift 20s ease-in-out infinite'}}/>
+
+    {/* Nebulosa cian-violeta abajo a la derecha */}
+    <div style={{position:'fixed',bottom:'-12%',right:'-18%',width:'70vw',height:'70vw',maxWidth:850,maxHeight:850,background:'radial-gradient(ellipse,rgba(0,150,200,.13) 0%,rgba(120,70,200,.06) 40%,transparent 70%)',pointerEvents:'none',zIndex:1,filter:'blur(45px)',animation:'ncDrift 25s ease-in-out infinite reverse'}}/>
+
+    {/* Brillo dorado muy tenue al centro */}
+    <div style={{position:'fixed',top:'28%',left:'50%',transform:'translateX(-50%)',width:'45vw',height:'45vw',maxWidth:450,maxHeight:450,background:'radial-gradient(circle,rgba(232,194,117,.07) 0%,transparent 65%)',pointerEvents:'none',zIndex:1,filter:'blur(35px)'}}/>
+
+    {/* Estrellas */}
+    <svg viewBox="0 0 100 100" preserveAspectRatio="none" style={{position:'fixed',inset:0,width:'100vw',height:'100vh',pointerEvents:'none',zIndex:2}}>
+      {stars.map((s,i)=>(
+        <circle key={i} cx={s.x} cy={s.y} r={s.r}
+          fill={s.bright?'#ffffff':'#dde4ff'}
+          style={{
+            opacity: s.o,
+            animation: `ncTwinkle ${3+s.delay}s ease-in-out infinite`,
+            animationDelay: `${s.delay}s`,
+            filter: s.bright ? 'drop-shadow(0 0 0.4px #ffffff)' : 'none'
+          }}/>
+      ))}
+    </svg>
+  </>;
+}
+
+// ── ESFERA DE CRISTAL FACETADO (logo animado) ──
+function DiscoBall({ size=140 }) {
+  // Facetas del cristal (triángulos) — coords sobre viewBox 100x100, círculo r~38 centrado en 50,50
+  const facets = [
+    { p:'50,12 72,26 58,42',         c:'#5ee9f0' },
+    { p:'72,26 84,48 62,46',         c:'#2bb8e8' },
+    { p:'50,12 58,42 38,38',         c:'#a45cff' },
+    { p:'50,12 38,38 28,26',         c:'#ff5fc8' },
+    { p:'28,26 38,38 24,52',         c:'#bf5fff' },
+    { p:'38,38 58,42 50,58',         c:'#7d8cff' },
+    { p:'58,42 62,46 50,58',         c:'#3ed8e0' },
+    { p:'62,46 84,48 72,68',         c:'#1f9fd4' },
+    { p:'62,46 72,68 50,58',         c:'#5ee9f0' },
+    { p:'24,52 38,38 50,58',         c:'#9b6cff' },
+    { p:'24,52 50,58 34,72',         c:'#c44de8' },
+    { p:'50,58 72,68 56,82',         c:'#3ed8e0' },
+    { p:'50,58 56,82 34,72',         c:'#ff6fd0' },
+    { p:'34,72 56,82 44,88',         c:'#a45cff' },
+    { p:'72,26 50,12 62,18',         c:'#7de8ff' },
+    { p:'84,48 72,68 88,56',         c:'#1f9fd4' },
+  ];
+  return (
+    <div style={{width:size,height:size,position:'relative',margin:'0 auto',animation:'ncFloat 5s ease-in-out infinite'}}>
+      {/* Halo exterior pulsante */}
+      <div style={{position:'absolute',inset:'-25%',background:'radial-gradient(circle, rgba(120,90,255,.35) 0%, rgba(0,217,230,.18) 40%, transparent 70%)',borderRadius:'50%',animation:'ncGlowPulse 3.5s ease-in-out infinite',filter:'blur(8px)'}}/>
+      <div style={{width:'100%',height:'100%',position:'relative',filter:'drop-shadow(0 0 18px rgba(120,90,255,.7)) drop-shadow(0 0 32px rgba(0,217,230,.5))'}}>
+        <svg viewBox="0 0 100 100" style={{width:'100%',height:'100%',animation:'ncSpin 22s linear infinite'}}>
+          <defs>
+            <radialGradient id="crystalCore" cx="42%" cy="38%">
+              <stop offset="0%" stopColor="#ffffff" stopOpacity="0.95"/>
+              <stop offset="35%" stopColor="#7de8ff" stopOpacity="0.55"/>
+              <stop offset="100%" stopColor="#1a1a3a" stopOpacity="0.2"/>
+            </radialGradient>
+          </defs>
+          {/* base de la esfera */}
+          <circle cx="50" cy="50" r="39" fill="url(#crystalCore)"/>
+          {/* facetas de cristal */}
+          {facets.map((f,i)=>(
+            <polygon key={i} points={f.p} fill={f.c}
+              stroke="rgba(255,255,255,.55)" strokeWidth="0.4" strokeLinejoin="round"
+              style={{opacity:0.82, animation:`ncFacet ${2.5+(i%5)*0.4}s ease-in-out infinite`, animationDelay:`${i*0.18}s`}}/>
+          ))}
+          {/* brillo superior */}
+          <ellipse cx="40" cy="32" rx="9" ry="5" fill="#ffffff" opacity="0.7"/>
+          {/* destello central */}
+          <circle cx="50" cy="50" r="4" fill="#ffffff" opacity="0.85" style={{animation:'ncFacet 2s ease-in-out infinite'}}/>
+        </svg>
+        {/* Partículas flotantes alrededor */}
+        <svg viewBox="0 0 100 100" style={{position:'absolute',inset:0,width:'100%',height:'100%',overflow:'visible'}}>
+          {[
+            {x:18,y:30,r:1.4,c:'#5ee9f0',d:0},   {x:84,y:38,r:1.1,c:'#ff6fd0',d:0.6},
+            {x:24,y:74,r:1.2,c:'#bf5fff',d:1.2},  {x:78,y:72,r:1.5,c:'#5ee9f0',d:0.3},
+            {x:50,y:8,r:1,c:'#ffffff',d:0.9},     {x:12,y:52,r:1.1,c:'#a45cff',d:1.5},
+            {x:90,y:54,r:1,c:'#3ed8e0',d:0.4},    {x:46,y:92,r:1.3,c:'#ff6fd0',d:1.1},
+            {x:66,y:16,r:0.9,c:'#7de8ff',d:1.8},  {x:32,y:18,r:1,c:'#c44de8',d:0.7},
+          ].map((s,i)=>(
+            <circle key={i} cx={s.x} cy={s.y} r={s.r} fill={s.c}
+              style={{animation:`ncSparkle ${2.2+s.d}s ease-in-out infinite`,animationDelay:`${s.d}s`,filter:`drop-shadow(0 0 2px ${s.c})`}}/>
+          ))}
+        </svg>
+      </div>
+    </div>
+  );
+}
+
+function Avatar({ p, size=60 }) {
+  if (p.photo) return (
+    <div style={{width:size,height:size,borderRadius:'50%',overflow:'hidden',flexShrink:0}}>
+      <img src={p.photo} alt={p.name} style={{width:'100%',height:'100%',objectFit:'cover'}}/>
+    </div>
+  );
+  return (
+    <div style={{width:size,height:size,borderRadius:'50%',background:getGrad(p.name),display:'flex',alignItems:'center',justifyContent:'center',fontSize:size*.38,fontWeight:700,flexShrink:0,boxShadow:`0 0 ${size*.25}px rgba(191,95,255,.45)`}}>
+      {p.name?.[0]?.toUpperCase()}
+    </div>
+  );
+}
+
+function Tag({ id }) {
+  const lf = LOOKING.find(l=>l.id===id);
+  if (!lf) return null;
+  return <span style={{background:`${lf.color}22`,border:`1px solid ${lf.color}66`,borderRadius:20,padding:'3px 10px',color:lf.color,fontSize:'.72rem',boxShadow:`0 0 6px ${lf.color}33`}}>{lf.emoji} {lf.label}</span>;
+}
+
+function OrientationTag({ id, small }) {
+  const o = ORIENTATIONS.find(x=>x.id===id);
+  if (!o) return null;
+  const PURPLE = '#bf5fff';
+  return <span style={{background:`${PURPLE}22`,border:`1px solid ${PURPLE}66`,borderRadius:20,padding:small?'1px 6px':'3px 10px',color:PURPLE,fontSize:small?'.62rem':'.72rem',boxShadow:`0 0 6px ${PURPLE}33`,fontFamily:'Inter,sans-serif',whiteSpace:'nowrap'}}>{o.emoji} {o.label}</span>;
+}
+
+function Label({ children }) {
+  return <label style={{display:'block',color:'rgba(255,255,255,.5)',fontSize:'.75rem',marginBottom:5,letterSpacing:'.5px'}}>{children}</label>;
+}
+
+function PrimaryBtn({ onClick, children, style={} }) {
+  return <button onClick={onClick} style={{width:'100%',background:`linear-gradient(135deg,${NEON.cyan2},${NEON.cyan})`,border:'none',borderRadius:50,padding:'1rem',color:'#021014',fontSize:'1.05rem',fontWeight:800,cursor:'pointer',boxShadow:`0 0 30px ${NEON.cyan}99, inset 0 1px 0 rgba(255,255,255,.4)`,fontFamily:'Inter,sans-serif',letterSpacing:'.3px',...style}}>{children}</button>;
+}
+
+function NightConnect() {
+  const [screen, setScreen] = useState('home'); // home|welcome|login|create|paywall|main|profile|owner
+  const [ownerGate, setOwnerGate] = useState({ open:false, key:'', err:'' }); // login dueño
+  const [me, setMe]         = useState(null);
+  const [profiles, setProfiles] = useState([]);
+  const [notifs, setNotifs]     = useState([]);
+  const [sel, setSel]           = useState(null);
+  const [tab, setTab]           = useState('feed');
+  const [sent, setSent]         = useState({});
+  const [toast, setToast]       = useState(null);
+  const [err, setErr]           = useState('');
+  const [incoming, setIncoming] = useState(null); // invitación emergente en tiempo real
+  const [tableCheck, setTableCheck] = useState({ open:false, value:'', err:'' }); // modal de clave mesa
+  const [liquorOrder, setLiquorOrder] = useState({ open:false, item:'', sent:false }); // pedir licor
+  // ── Sistema de acceso por código ──
+  const [accessCode, setAccessCode] = useState('');        // código que digita el portero
+  const [accessErr, setAccessErr] = useState('');          // error en el muro de acceso
+  const [pendingProfile, setPendingProfile] = useState(null); // perfil que espera desbloqueo
+
+  // Forms
+  const [form, setForm]   = useState({name:'',age:'',table:'',seat:'',lookingFor:[],photo:null,orientation:''});
+  const [login, setLogin] = useState({name:'',table:''});
+  const [resetGate, setResetGate] = useState({ open:false, key:'', err:'', done:false }); // reiniciar app
+
+  const showToast = msg => { setToast(msg); setTimeout(()=>setToast(null),3200); };
+
+  // ════════════════════════════════════════════════════════
+  // SUPABASE — funciones de base de datos en la nube
+  // ════════════════════════════════════════════════════════
+  const sbHeaders = {
+    'apikey': SUPABASE_KEY,
+    'Authorization': `Bearer ${SUPABASE_KEY}`,
+    'Content-Type': 'application/json',
+  };
+  // Convierte una fila de Supabase (snake_case) a objeto de la app (camelCase)
+  const rowToProfile = r => ({
+    id: r.user_id, dbId: r.id, name: r.name, age: r.age, table: r.table_seat,
+    orientation: r.orientation, lookingFor: r.looking_for || [], photo: r.photo, paid: r.paid,
+    ts: r.created_at ? new Date(r.created_at).getTime() : Date.now(),
+  });
+  const rowToNotif = r => ({
+    id: 'n'+r.id, dbId: r.id,
+    from: { id:r.from_user, name:r.from_name, age:r.from_age, table:r.from_table, photo:r.from_photo },
+    type: r.type, status: r.status || undefined, isResponse: !!r.is_response, read: !!r.read,
+    ts: r.created_at ? new Date(r.created_at).getTime() : Date.now(),
+  });
+
+  const loadProfiles = useCallback(async () => {
+    try {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/profiles?select=*&paid=eq.true&order=created_at.asc`, { headers: sbHeaders });
+      if (res.ok) { const data = await res.json(); setProfiles(data.map(rowToProfile)); }
+    } catch{}
+  },[]);
+
+  const loadNotifs = useCallback(async uid => {
+    if (!uid) return;
+    try {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/invitations?select=*&to_user=eq.${uid}&order=created_at.asc`, { headers: sbHeaders });
+      if (!res.ok) return;
+      const data = await res.json();
+      const fresh = data.map(rowToNotif);
+      setNotifs(prev => {
+        const prevIds = new Set(prev.map(n=>n.id));
+        const newInvite = [...fresh].reverse().find(n => !prevIds.has(n.id) && !n.isResponse && !n.status && !n.read);
+        if (newInvite && prev.length > 0) setIncoming(newInvite);
+        return fresh;
+      });
+    } catch{}
+  },[]);
+
+  useEffect(()=>{ loadProfiles(); },[]);
+  useEffect(()=>{
+    if (screen!=='main' && screen!=='profile') return;
+    const iv = setInterval(()=>{ loadProfiles(); if(me) loadNotifs(me.id); },2500);
+    return ()=>clearInterval(iv);
+  },[screen, me]);
+  useEffect(()=>{
+    if (screen!=='owner') return;
+    const iv = setInterval(()=>{ loadProfiles(); },3000);
+    return ()=>clearInterval(iv);
+  },[screen]);
+
+  // ── LOGIN ────────────────────────────────────────────────
+  const handleLogin = async () => {
+    setErr('');
+    if (!login.name.trim() || !login.table.trim()) return setErr('Completa todos los campos');
+    try {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/profiles?select=*&name=ilike.${encodeURIComponent(login.name.trim())}&table_seat=ilike.${encodeURIComponent(login.table.trim())}`, { headers: sbHeaders });
+      const data = await res.json();
+      if (!data || !data.length) return setErr('Nombre o número de mesa incorrecto');
+      const found = rowToProfile(data[0]);
+      if (found.paid) {
+        setMe(found);
+        await loadNotifs(found.id);
+        setScreen('main');
+      } else {
+        setPendingProfile(found);
+        setAccessCode(''); setAccessErr('');
+        setScreen('paywall');
+      }
+    } catch { setErr('Error de conexión. Revisa tu internet.'); }
+  };
+
+  // ── CREATE PROFILE ───────────────────────────────────────
+  const handleCreate = async () => {
+    if (!form.name.trim())          return setErr('Ingresa tu nombre');
+    if (!form.table.trim())         return setErr('Ingresa el número de mesa');
+    if (!form.seat)                 return setErr('Selecciona tu puesto en la mesa (A, B, C...)');
+    if (!form.lookingFor.length)    return setErr('Selecciona qué buscas esta noche');
+    if (!form.photo)                return setErr('Sube una foto para tu perfil');
+    if (!form.orientation)          return setErr('Selecciona tu orientación');
+    setErr('');
+    const fullTable = form.table.trim() + form.seat;
+    try {
+      // Verificar nombre y puesto únicos
+      const check = await fetch(`${SUPABASE_URL}/rest/v1/profiles?select=name,table_seat&or=(name.ilike.${encodeURIComponent(form.name.trim())},table_seat.ilike.${encodeURIComponent(fullTable)})`, { headers: sbHeaders });
+      const existing = await check.json();
+      if (existing.some(p=>p.name?.toLowerCase()===form.name.trim().toLowerCase()))
+        return setErr('Ya existe un perfil con ese nombre. Inicia sesión.');
+      if (existing.some(p=>p.table_seat?.toLowerCase()===fullTable.toLowerCase()))
+        return setErr(`El puesto ${fullTable} ya está ocupado. Elige otra letra.`);
+    } catch { return setErr('Error de conexión. Revisa tu internet.'); }
+    // Perfil en memoria — se guardará en la nube al validar el código
+    const p = { id:`u${Date.now()}`, name:form.name.trim(), age:form.age, table:fullTable, lookingFor:form.lookingFor, photo:form.photo, orientation:form.orientation, paid:false, ts:Date.now() };
+    setPendingProfile(p);
+    setAccessCode(''); setAccessErr('');
+    setScreen('paywall');
+  };
+
+  // ── REINICIAR APP — borra perfiles e invitaciones ────────
+  const resetApp = async () => {
+    try {
+      await fetch(`${SUPABASE_URL}/rest/v1/invitations?id=gt.0`, { method:'DELETE', headers: sbHeaders });
+      await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=gt.0`, { method:'DELETE', headers: sbHeaders });
+    } catch{}
+    setProfiles([]);
+    setResetGate({ open:false, key:'', err:'', done:true });
+  };
+
+  // ── VALIDAR CÓDIGO DE ACCESO ─────────────────────────────
+  const redeemCode = async () => {
+    if (!pendingProfile) return;
+    const typed = accessCode.trim().toUpperCase();
+    if (!typed) { setAccessErr('El portero debe ingresar el código de acceso'); return; }
+    if (typed !== ACCESS_CODE) { setAccessErr('Código incorrecto. Verifícalo con el portero.'); return; }
+    try {
+      const body = {
+        user_id: pendingProfile.id, name: pendingProfile.name, age: pendingProfile.age,
+        table_seat: pendingProfile.table, orientation: pendingProfile.orientation,
+        looking_for: pendingProfile.lookingFor, photo: pendingProfile.photo, paid: true,
+      };
+      let res, saved;
+      if (pendingProfile.dbId) {
+        // Ya existía (login) → actualizar a paid
+        res = await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${pendingProfile.dbId}`, {
+          method:'PATCH', headers:{...sbHeaders,'Prefer':'return=representation'}, body: JSON.stringify({ paid:true })
+        });
+        saved = (await res.json())[0];
+      } else {
+        // Nuevo → insertar
+        res = await fetch(`${SUPABASE_URL}/rest/v1/profiles`, {
+          method:'POST', headers:{...sbHeaders,'Prefer':'return=representation'}, body: JSON.stringify(body)
+        });
+        saved = (await res.json())[0];
+      }
+      if (!res.ok || !saved) { setAccessErr('Error al guardar. Intenta de nuevo.'); return; }
+      const unlocked = rowToProfile(saved);
+      setMe(unlocked);
+      await loadProfiles();
+      await loadNotifs(unlocked.id);
+      setPendingProfile(null);
+      setScreen('main');
+    } catch { setAccessErr('Error de conexión. Revisa tu internet.'); }
+  };
+
+  // ── INVITE ───────────────────────────────────────────────
+  const handleInvite = async (toP, type) => {
+    const k=`${toP.id}:${type}`;
+    if (sent[k]) return;
+    try {
+      await fetch(`${SUPABASE_URL}/rest/v1/invitations`, {
+        method:'POST', headers: sbHeaders,
+        body: JSON.stringify({
+          to_user: toP.id, from_user: me.id, from_name: me.name, from_age: me.age,
+          from_table: me.table, from_photo: me.photo, type, status:'', is_response:false, read:false,
+        })
+      });
+      setSent(p=>({...p,[k]:true}));
+      const lf=LOOKING.find(l=>l.id===type);
+      showToast(`✨ Invitación a ${lf?.label?.toLowerCase()} enviada a ${toP.name}`);
+    } catch { showToast('Error al enviar. Revisa tu internet.'); }
+  };
+
+  const markRead = async () => {
+    if (!me) return;
+    const unread = notifs.filter(n=>!n.read);
+    setNotifs(notifs.map(n=>({...n,read:true})));
+    try {
+      for (const n of unread) {
+        if (n.dbId) await fetch(`${SUPABASE_URL}/rest/v1/invitations?id=eq.${n.dbId}`, {
+          method:'PATCH', headers: sbHeaders, body: JSON.stringify({ read:true })
+        });
+      }
+    } catch{}
+  };
+
+  // ── ACCEPT / DECLINE ─────────────────────────────────────
+  const handleRespond = async (notif, status) => {
+    if (!me) return;
+    if (incoming?.id === notif.id) setIncoming(null);
+    setNotifs(notifs.map(n => n.id===notif.id ? {...n, status, read:true} : n));
+    try {
+      // Marcar mi invitación con el estado
+      if (notif.dbId) await fetch(`${SUPABASE_URL}/rest/v1/invitations?id=eq.${notif.dbId}`, {
+        method:'PATCH', headers: sbHeaders, body: JSON.stringify({ status, read:true })
+      });
+      // Enviar notificación de respuesta al que invitó
+      await fetch(`${SUPABASE_URL}/rest/v1/invitations`, {
+        method:'POST', headers: sbHeaders,
+        body: JSON.stringify({
+          to_user: notif.from.id, from_user: me.id, from_name: me.name, from_age: me.age,
+          from_table: me.table, from_photo: me.photo, type: notif.type,
+          status, is_response:true, read:false,
+        })
+      });
+    } catch{}
+    const lf = LOOKING.find(l=>l.id===notif.type);
+    if (status==='accepted') showToast(`✨ ¡Aceptaste ${lf?.label?.toLowerCase()} con ${notif.from.name}!`);
+    else showToast(`Declinaste la invitación de ${notif.from.name}`);
+  };
+
+  const logout = () => { setMe(null); setNotifs([]); setSent({}); setIncoming(null); setTab('feed'); setScreen('welcome'); };
+
+  const others = profiles.filter(p=>!me||p.id!==me.id);
+  const unread = notifs.filter(n=>!n.read).length;
+  // IDs of users from whom I have a pending (unanswered) invitation — for glow effect
+  const pendingFromIds = new Set(notifs.filter(n=>!n.isResponse && !n.status).map(n=>n.from.id));
+
+  // ══════════════════════════════════════════════════════════
+  // HOME — PRESENTACIÓN / SPLASH
+  // ══════════════════════════════════════════════════════════
+  if (screen==='home') return (
+    <div style={base}>
+      <NeonBg/>
+      <div style={{position:'relative',zIndex:3,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',minHeight:'100vh',padding:'2rem 1.5rem',textAlign:'center'}}>
+
+        {/* Logo esfera cristal */}
+        <div style={{animation:'ncFadeUp 1s ease-out'}}>
+          <DiscoBall size={190}/>
+        </div>
+
+        {/* Nombre */}
+        <h1 style={{margin:'1.75rem 0 .2rem',fontSize:'clamp(1.7rem,7vw,2.8rem)',fontWeight:900,letterSpacing:'1.5px',color:'#fff',fontFamily:'Inter,sans-serif',textShadow:`0 0 18px ${NEON.cyan}, 0 0 36px rgba(120,90,255,.6)`,animation:'ncFadeUp 1s ease-out .2s both',lineHeight:1.1}}>
+          ROMPEHIELO<span style={{color:NEON.cyan2}}>ENLINEA</span>
+        </h1>
+
+        {/* Tagline */}
+        <p style={{margin:'.3rem 0 0',fontSize:'clamp(.9rem,3.5vw,1.15rem)',fontWeight:600,letterSpacing:'3px',color:NEON.cyan2,fontFamily:'Inter,sans-serif',textShadow:`0 0 12px ${NEON.cyan}66`,animation:'ncFadeUp 1s ease-out .35s both'}}>
+          EL FUTURO DE LA RUMBA
+        </p>
+
+        <div style={{width:120,height:2,background:`linear-gradient(90deg,transparent,${NEON.cyan2},${NEON.purple},transparent)`,borderRadius:2,margin:'1.6rem 0',boxShadow:`0 0 12px ${NEON.cyan}`,animation:'ncFadeUp 1s ease-out .5s both'}}/>
+
+        {/* Saludo / presentación */}
+        <div style={{maxWidth:380,animation:'ncFadeUp 1s ease-out .65s both'}}>
+          <p style={{color:'rgba(255,255,255,.85)',fontSize:'1.05rem',lineHeight:1.6,margin:'0 0 1rem',fontFamily:'Inter,sans-serif'}}>
+            ¡Hola! 👋 Bienvenido a la noche.
+          </p>
+          <p style={{color:'rgba(255,255,255,.55)',fontSize:'.92rem',lineHeight:1.65,margin:'0 0 1.75rem',fontFamily:'Inter,sans-serif'}}>
+            Conecta con las personas que están <b style={{color:NEON.gold2}}>esta misma noche</b> en el lugar. Encuentra con quién bailar 💃, comparte una copa 🥂 y haz que tu rumba sea inolvidable.
+          </p>
+        </div>
+
+        {/* Mini features */}
+        <div style={{display:'flex',gap:'.6rem',marginBottom:'2rem',animation:'ncFadeUp 1s ease-out .8s both'}}>
+          {[
+            {e:'⚡',t:'En vivo'},
+            {e:'🪩',t:'Tu mesa'},
+            {e:'✨',t:'Sin filtros'},
+          ].map((f,i)=>(
+            <div key={i} style={{background:'rgba(8,14,24,.6)',border:`1px solid ${NEON.purple}33`,borderRadius:14,padding:'.7rem .9rem',backdropFilter:'blur(8px)'}}>
+              <div style={{fontSize:'1.3rem'}}>{f.e}</div>
+              <div style={{fontSize:'.7rem',color:NEON.cyan2,fontFamily:'Inter,sans-serif',marginTop:2,fontWeight:600}}>{f.t}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* CTA */}
+        <div style={{width:'100%',maxWidth:320,animation:'ncFadeUp 1s ease-out .95s both'}}>
+          <PrimaryBtn onClick={()=>setScreen('welcome')}>
+            Comenzar la noche ✨
+          </PrimaryBtn>
+        </div>
+        <p style={{marginTop:'1.2rem',color:`${NEON.gold}77`,fontSize:'.74rem',fontFamily:'Inter,sans-serif',letterSpacing:'.5px',animation:'ncFadeUp 1s ease-out 1.1s both'}}>
+          ✦ Una experiencia solo para esta noche 🌙 ✦
+        </p>
+        {/* Botones discretos del dueño */}
+        <div style={{marginTop:'1.5rem',display:'flex',gap:'1.25rem'}}>
+          <button onClick={()=>setOwnerGate({open:true,key:'',err:''})}
+            style={{background:'none',border:'none',color:'rgba(255,255,255,.12)',fontSize:'.68rem',cursor:'pointer',fontFamily:'Inter,sans-serif'}}>
+            👑 Panel
+          </button>
+          <button onClick={()=>setResetGate({open:true,key:'',err:'',done:false})}
+            style={{background:'none',border:'none',color:'rgba(255,255,255,.12)',fontSize:'.68rem',cursor:'pointer',fontFamily:'Inter,sans-serif'}}>
+            ⚙️ Reiniciar
+          </button>
+        </div>
+      </div>
+
+      {/* ── MODAL: PANEL DE DUEÑO (login) ── */}
+      {ownerGate.open && (
+        <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.85)',backdropFilter:'blur(10px)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:300,padding:'1.5rem'}} onClick={()=>setOwnerGate({open:false,key:'',err:''})}>
+          <div onClick={e=>e.stopPropagation()} style={{...glass,padding:'1.9rem 1.6rem',maxWidth:370,width:'100%',border:`2px solid ${NEON.gold}`,boxShadow:`0 0 40px ${NEON.gold}55`,textAlign:'center'}}>
+            <div style={{fontSize:'2.4rem',marginBottom:'.4rem'}}>👑</div>
+            <h2 style={{margin:'0 0 .35rem',fontSize:'1.3rem',fontWeight:800,color:NEON.gold2,fontFamily:'Inter,sans-serif'}}>Panel de Dueño</h2>
+            <p style={{margin:'0 0 1.1rem',color:'rgba(255,255,255,.55)',fontSize:'.82rem',fontFamily:'Inter,sans-serif'}}>Ingresa tu clave de dueño</p>
+            <input
+              type="password"
+              autoFocus
+              value={ownerGate.key}
+              onChange={e=>setOwnerGate(s=>({...s,key:e.target.value,err:''}))}
+              placeholder="Clave de dueño"
+              style={{...inp,textAlign:'center',letterSpacing:'2px',fontWeight:700}}
+              onKeyDown={e=>{
+                if(e.key==='Enter'){
+                  if(ownerGate.key.trim()===OWNER_KEY){ setOwnerGate({open:false,key:'',err:''}); loadProfiles(); setScreen('owner'); }
+                  else setOwnerGate(s=>({...s,err:'Clave incorrecta'}));
+                }
+              }}
+            />
+            {ownerGate.err && <p style={{color:NEON.pink,fontSize:'.82rem',margin:'.7rem 0 0',fontFamily:'Inter,sans-serif'}}>{ownerGate.err}</p>}
+            <div style={{display:'flex',gap:'.6rem',marginTop:'1.2rem'}}>
+              <button onClick={()=>setOwnerGate({open:false,key:'',err:''})} style={{flex:1,background:'rgba(255,255,255,.06)',border:'1px solid rgba(255,255,255,.15)',borderRadius:12,padding:'.75rem',color:'rgba(255,255,255,.7)',fontWeight:600,fontSize:'.88rem',cursor:'pointer',fontFamily:'Inter,sans-serif'}}>Cancelar</button>
+              <button onClick={()=>{
+                if(ownerGate.key.trim()===OWNER_KEY){ setOwnerGate({open:false,key:'',err:''}); loadProfiles(); setScreen('owner'); }
+                else setOwnerGate(s=>({...s,err:'Clave incorrecta'}));
+              }} style={{flex:1.3,background:`linear-gradient(135deg,${NEON.gold2},${NEON.gold},${NEON.goldDark})`,border:'none',borderRadius:12,padding:'.75rem',color:'#1a1000',fontWeight:800,fontSize:'.88rem',cursor:'pointer',boxShadow:`0 0 14px ${NEON.gold}88`,fontFamily:'Inter,sans-serif'}}>Entrar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL: REINICIAR APP ── */}
+      {resetGate.open && (
+        <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.85)',backdropFilter:'blur(10px)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:300,padding:'1.5rem'}} onClick={()=>setResetGate({open:false,key:'',err:'',done:false})}>
+          <div onClick={e=>e.stopPropagation()} style={{...glass,padding:'1.9rem 1.6rem',maxWidth:370,width:'100%',border:`2px solid ${NEON.pink}`,boxShadow:`0 0 40px ${NEON.pink}55`,textAlign:'center'}}>
+            {!resetGate.done ? <>
+              <div style={{fontSize:'2.4rem',marginBottom:'.4rem'}}>🧹</div>
+              <h2 style={{margin:'0 0 .35rem',fontSize:'1.3rem',fontWeight:800,color:NEON.pink,fontFamily:'Inter,sans-serif'}}>Reiniciar la app</h2>
+              <p style={{margin:'0 0 1.1rem',color:'rgba(255,255,255,.55)',fontSize:'.82rem',fontFamily:'Inter,sans-serif',lineHeight:1.5}}>
+                Esto <b>borra TODOS los perfiles e invitaciones</b> para empezar de cero. Ingresa la clave para confirmar.
+              </p>
+              <input
+                type="password"
+                autoFocus
+                value={resetGate.key}
+                onChange={e=>setResetGate(s=>({...s,key:e.target.value,err:''}))}
+                placeholder="Clave de reinicio"
+                style={{...inp,textAlign:'center',letterSpacing:'2px',fontWeight:700}}
+                onKeyDown={e=>{
+                  if(e.key==='Enter'){
+                    if(resetGate.key.trim()===RESET_KEY) resetApp();
+                    else setResetGate(s=>({...s,err:'Clave incorrecta'}));
+                  }
+                }}
+              />
+              {resetGate.err && <p style={{color:NEON.pink,fontSize:'.82rem',margin:'.7rem 0 0',fontFamily:'Inter,sans-serif'}}>{resetGate.err}</p>}
+              <div style={{display:'flex',gap:'.6rem',marginTop:'1.2rem'}}>
+                <button onClick={()=>setResetGate({open:false,key:'',err:'',done:false})} style={{flex:1,background:'rgba(255,255,255,.06)',border:'1px solid rgba(255,255,255,.15)',borderRadius:12,padding:'.75rem',color:'rgba(255,255,255,.7)',fontWeight:600,fontSize:'.88rem',cursor:'pointer',fontFamily:'Inter,sans-serif'}}>Cancelar</button>
+                <button onClick={()=>{
+                  if(resetGate.key.trim()===RESET_KEY) resetApp();
+                  else setResetGate(s=>({...s,err:'Clave incorrecta'}));
+                }} style={{flex:1.3,background:`linear-gradient(135deg,${NEON.pink},#d6246a)`,border:'none',borderRadius:12,padding:'.75rem',color:'#fff',fontWeight:800,fontSize:'.88rem',cursor:'pointer',boxShadow:`0 0 14px ${NEON.pink}88`,fontFamily:'Inter,sans-serif'}}>🧹 Borrar todo</button>
+              </div>
+            </> : <>
+              <div style={{fontSize:'3rem',marginBottom:'.5rem'}}>✅</div>
+              <h2 style={{margin:'0 0 .4rem',fontSize:'1.3rem',fontWeight:800,color:NEON.green,fontFamily:'Inter,sans-serif'}}>App reiniciada</h2>
+              <p style={{margin:'0 0 1.2rem',color:'rgba(255,255,255,.6)',fontSize:'.85rem',fontFamily:'Inter,sans-serif'}}>Todos los perfiles fueron borrados. Ya puedes llenar la app de nuevo.</p>
+              <button onClick={()=>setResetGate({open:false,key:'',err:'',done:false})} style={{width:'100%',background:`linear-gradient(135deg,${NEON.cyan2},${NEON.cyan})`,border:'none',borderRadius:12,padding:'.8rem',color:'#021014',fontWeight:800,fontSize:'.9rem',cursor:'pointer',fontFamily:'Inter,sans-serif'}}>Listo ✨</button>
+            </>}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
+  // ══════════════════════════════════════════════════════════
+  // WELCOME
+  // ══════════════════════════════════════════════════════════
+  if (screen==='welcome') return (
+    <div style={base}>
+      <NeonBg/>
+      <div style={{position:'relative',zIndex:3,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'flex-start',minHeight:'100vh',padding:'1.5rem 1.5rem 2rem',textAlign:'center'}}>
+        <button onClick={()=>setScreen('home')} style={{alignSelf:'flex-start',background:'none',border:'none',color:NEON.gold2,cursor:'pointer',fontSize:'.9rem',padding:0,marginBottom:'.5rem',fontFamily:'Inter,sans-serif'}}>← Inicio</button>
+        <DiscoBall size={130}/>
+        <h1 style={{margin:'1.75rem 0 .2rem',fontSize:'clamp(1.7rem,7vw,2.8rem)',fontWeight:900,letterSpacing:'1.5px',color:'#fff',fontFamily:'Inter,sans-serif',textShadow:`0 0 18px ${NEON.cyan}, 0 0 36px rgba(120,90,255,.6)`,lineHeight:1.1}}>
+          ROMPEHIELO<span style={{color:NEON.cyan2}}>ENLINEA</span>
+        </h1>
+        <p style={{color:NEON.cyan2,margin:'.4rem 0 1rem',fontSize:'1rem',fontFamily:'Inter,sans-serif',textShadow:`0 0 10px ${NEON.cyan}66`}}>Conecta con personas increíbles esta noche 🎶</p>
+        <div style={{width:90,height:2,background:`linear-gradient(90deg,transparent,${NEON.cyan2},transparent)`,borderRadius:2,boxShadow:`0 0 10px ${NEON.cyan}`,marginBottom:'2rem'}}/>
+        <div style={{display:'flex',flexDirection:'column',gap:'.7rem',width:'100%',maxWidth:340,marginBottom:'1.75rem'}}>
+          {[
+            {emoji:'💃',text:'Encuentra a alguien para bailar'},
+            {emoji:'🥂',text:'Comparte una copa especial'},
+            {emoji:'📸',text:'Sube tu foto de perfil'},
+          ].map((t,i)=>(
+            <div key={i} style={{background:'rgba(8,14,24,.65)',border:`1px solid ${NEON.gold}33`,borderRadius:50,padding:'.75rem 1.25rem',color:NEON.gold2,fontSize:'.95rem',fontFamily:'Inter,sans-serif',backdropFilter:'blur(8px)',boxShadow:`inset 0 0 12px rgba(232,194,117,.08)`}}>
+              <span style={{marginRight:8}}>{t.emoji}</span>{t.text}
+            </div>
+          ))}
+        </div>
+        <div style={{display:'flex',flexDirection:'column',gap:'.8rem',width:'100%',maxWidth:340}}>
+          <PrimaryBtn onClick={()=>{ setErr(''); setForm({name:'',age:'',table:'',seat:'',lookingFor:[],photo:null,orientation:''}); setScreen('create'); }}>
+            🚀 Crea tu perfil
+          </PrimaryBtn>
+          <button onClick={()=>{ setErr(''); setLogin({name:'',table:''}); setScreen('login'); }}
+            style={{background:'rgba(8,14,24,.65)',border:`1px solid ${NEON.gold}55`,borderRadius:50,padding:'.95rem',color:NEON.gold2,fontSize:'1rem',fontWeight:600,cursor:'pointer',fontFamily:'Inter,sans-serif',backdropFilter:'blur(8px)',boxShadow:`inset 0 0 12px rgba(232,194,117,.08)`}}>
+            🔑 Ya tengo perfil — Entrar
+          </button>
+        </div>
+        <p style={{marginTop:'1.5rem',color:`${NEON.gold}88`,fontSize:'.78rem',fontFamily:'Inter,sans-serif',letterSpacing:'.5px'}}>✦ Solo para esta noche 🌙 ✦</p>
+      </div>
+    </div>
+  );
+
+  // ══════════════════════════════════════════════════════════
+  // LOGIN
+  // ══════════════════════════════════════════════════════════
+  if (screen==='login') return (
+    <div style={base}>
+      <NeonBg/>
+      <div style={{position:'relative',zIndex:3,maxWidth:420,margin:'0 auto',padding:'2.5rem 1.5rem',minHeight:'100vh',display:'flex',flexDirection:'column',justifyContent:'center'}}>
+        <button onClick={()=>setScreen('welcome')} style={{background:'none',border:'none',color:NEON.gold2,cursor:'pointer',fontSize:'.9rem',marginBottom:'2rem',padding:0,textAlign:'left',fontFamily:'Inter,sans-serif'}}>← Volver</button>
+
+        <div style={{textAlign:'center',marginBottom:'2.5rem'}}>
+          <div style={{marginBottom:'.5rem'}}><DiscoBall size={95}/></div>
+          <h2 style={{margin:0,fontSize:'2.2rem',fontWeight:600,background:`linear-gradient(90deg, ${NEON.gold2}, ${NEON.gold}, ${NEON.cyan2})`,WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',backgroundClip:'text',fontFamily:'"Cormorant Garamond","Playfair Display",Georgia,serif',letterSpacing:'-.5px'}}>Bienvenido de vuelta</h2>
+          <p style={{color:NEON.cyan2,margin:'.5rem 0 0',fontSize:'.9rem',fontFamily:'Inter,sans-serif',textShadow:`0 0 8px ${NEON.cyan}44`}}>Ingresa con tu nombre y número de mesa</p>
+        </div>
+
+        <div style={{...glass,padding:'1.75rem'}}>
+          <div style={{marginBottom:'1.15rem'}}>
+            <Label>Nombre</Label>
+            <input style={inp} placeholder="Tu nombre" value={login.name} onChange={e=>setLogin(p=>({...p,name:e.target.value}))} onKeyDown={e=>e.key==='Enter'&&handleLogin()}/>
+          </div>
+          <div style={{marginBottom:'1.5rem'}}>
+            <Label>Número de mesa</Label>
+            <input style={inp} placeholder="¿En qué mesa estás?" value={login.table} onChange={e=>setLogin(p=>({...p,table:e.target.value}))} onKeyDown={e=>e.key==='Enter'&&handleLogin()}/>
+          </div>
+          {err && <p style={{color:NEON.pink,fontSize:'.82rem',marginBottom:'1rem',textAlign:'center'}}>{err}</p>}
+          <PrimaryBtn onClick={handleLogin}>Entrar →</PrimaryBtn>
+        </div>
+
+        <p style={{textAlign:'center',marginTop:'1.5rem',color:NEON.gold2,fontSize:'.88rem',fontFamily:'Inter,sans-serif'}}>
+          ¿No tienes perfil?{' '}
+          <span onClick={()=>{ setErr(''); setScreen('create'); }} style={{color:NEON.cyan2,cursor:'pointer',fontWeight:700,textShadow:`0 0 8px ${NEON.cyan}66`}}>Créalo aquí</span>
+        </p>
+      </div>
+    </div>
+  );
+
+  // ══════════════════════════════════════════════════════════
+  // CREATE PROFILE
+  // ══════════════════════════════════════════════════════════
+  if (screen==='create') return (
+    <div style={base}>
+      <NeonBg/>
+      <div style={{position:'relative',zIndex:3,maxWidth:480,margin:'0 auto',padding:'2rem 1.5rem',minHeight:'100vh'}}>
+        <button onClick={()=>setScreen('welcome')} style={{background:'none',border:'none',color:NEON.gold2,cursor:'pointer',fontSize:'.9rem',marginBottom:'.5rem',padding:0,fontFamily:'Inter,sans-serif'}}>← Volver</button>
+        <div style={{display:'flex',flexDirection:'column',alignItems:'center',marginBottom:'.5rem'}}>
+          <DiscoBall size={90}/>
+        </div>
+        <h2 style={{margin:'0 0 .2rem',fontSize:'2.2rem',fontWeight:600,background:`linear-gradient(90deg, ${NEON.gold2}, ${NEON.gold}, ${NEON.cyan2})`,WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',backgroundClip:'text',fontFamily:'"Cormorant Garamond","Playfair Display",Georgia,serif',letterSpacing:'-.5px',textAlign:'center'}}>Crea tu perfil</h2>
+        <p style={{color:NEON.cyan2,margin:'0 0 1.75rem',fontSize:'.9rem',fontFamily:'Inter,sans-serif',textAlign:'center'}}>Así te verán esta noche ✨</p>
+
+        {/* ── FOTO DE PERFIL — destacada ── */}
+        <div style={{...glass,padding:'1.5rem 1.25rem',marginBottom:'1.5rem',textAlign:'center',border:`1px solid ${NEON.gold}44`,boxShadow:`0 0 18px rgba(232,194,117,.1), inset 0 0 20px rgba(232,194,117,.04)`}}>
+          <p style={{color:NEON.gold2,fontSize:'.75rem',margin:'0 0 1rem',letterSpacing:'1.5px',fontFamily:'Inter,sans-serif',fontWeight:600}}>✦ TU MEJOR FOTO DE LA NOCHE ✦</p>
+          <label style={{cursor:'pointer',display:'inline-block',position:'relative'}}>
+            {form.photo
+              ? <div style={{position:'relative'}}>
+                  <div style={{width:120,height:120,borderRadius:'50%',overflow:'hidden',border:`3px solid ${NEON.gold}`,boxShadow:`0 0 30px ${NEON.gold}99, 0 0 50px ${NEON.cyan}44`,margin:'0 auto'}}>
+                    <img src={form.photo} style={{width:'100%',height:'100%',objectFit:'cover'}}/>
+                  </div>
+                  <div style={{position:'absolute',bottom:-4,right:'calc(50% - 70px)',background:NEON.cyan,color:'#021014',width:34,height:34,borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'1rem',boxShadow:`0 0 12px ${NEON.cyan}99`,border:'2px solid #02060c'}}>✎</div>
+                </div>
+              : <div style={{width:120,height:120,borderRadius:'50%',background:'rgba(8,14,24,.65)',border:`2px dashed ${NEON.gold}99`,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:6,boxShadow:`0 0 20px ${NEON.gold}33`,margin:'0 auto'}}>
+                  <span style={{fontSize:'2.2rem'}}>📸</span>
+                  <span style={{fontSize:'.68rem',color:NEON.gold2,fontFamily:'Inter,sans-serif',fontWeight:600,letterSpacing:'.5px'}}>TOCA AQUÍ</span>
+                </div>
+            }
+            <input type="file" accept="image/*" style={{display:'none'}} onChange={e=>{
+              const f=e.target.files[0]; if(!f) return;
+              const r=new FileReader(); r.onload=ev=>setForm(p=>({...p,photo:ev.target.result})); r.readAsDataURL(f);
+            }}/>
+          </label>
+          <p style={{color:NEON.cyan2,opacity:.7,fontSize:'.78rem',margin:'.85rem 0 0',fontFamily:'Inter,sans-serif',fontStyle:'italic'}}>
+            {form.photo ? '✨ Te ves increíble — toca para cambiar' : 'Elige una foto donde te veas espectacular'}
+          </p>
+        </div>
+
+        {/* Fields */}
+        {[{l:'Nombre *',f:'name',ph:'¿Cómo te llaman?',t:'text'},{l:'Edad',f:'age',ph:'Años',t:'number'}].map(({l,f,ph,t})=>(
+          <div key={f} style={{marginBottom:'1.1rem'}}>
+            <Label>{l}</Label>
+            <input type={t} placeholder={ph} value={form[f]} onChange={e=>setForm(p=>({...p,[f]:e.target.value}))} style={inp}/>
+          </div>
+        ))}
+
+        {/* Mesa + Puesto */}
+        <div style={{marginBottom:'1.1rem'}}>
+          <Label>Número de mesa *</Label>
+          <input type="text" placeholder="¿En qué mesa estás? (ej: 3)" value={form.table} onChange={e=>setForm(p=>({...p,table:e.target.value}))} style={inp}/>
+        </div>
+        <div style={{marginBottom:'1.1rem'}}>
+          <Label>Tu puesto en la mesa * (si hay varias personas en tu mesa, cada quien elige una letra distinta)</Label>
+          <div style={{display:'flex',gap:'.45rem',flexWrap:'wrap'}}>
+            {SEATS.map(s=>{
+              const active=form.seat===s;
+              return <button key={s} onClick={()=>setForm(p=>({...p,seat:active?'':s}))}
+                style={{minWidth:42,background:active?`${NEON.cyan}22`:'rgba(255,255,255,.05)',border:`1.5px solid ${active?NEON.cyan:'rgba(255,255,255,.1)'}`,borderRadius:10,padding:'.6rem .3rem',color:active?NEON.cyan2:'rgba(255,255,255,.5)',cursor:'pointer',fontSize:'1rem',fontWeight:800,boxShadow:active?`0 0 12px ${NEON.cyan}55`:'none',transition:'all .2s',fontFamily:'Inter,sans-serif'}}>
+                {s}
+              </button>;
+            })}
+          </div>
+          {form.table && form.seat && (
+            <p style={{margin:'.5rem 0 0',color:NEON.gold2,fontSize:'.8rem',fontFamily:'Inter,sans-serif'}}>
+              ✦ Tu mesa será: <b style={{color:NEON.cyan2}}>Mesa {form.table}{form.seat}</b>
+            </p>
+          )}
+        </div>
+
+        {/* Looking for */}
+        <div style={{marginBottom:'1.5rem'}}>
+          <Label>¿Qué buscas esta noche? *</Label>
+          <div style={{display:'flex',gap:'.65rem',flexWrap:'wrap'}}>
+            {LOOKING.map(({id,emoji,label,color})=>{
+              const active=form.lookingFor.includes(id);
+              return <button key={id} onClick={()=>setForm(p=>({...p,lookingFor:active?p.lookingFor.filter(x=>x!==id):[...p.lookingFor,id]}))}
+                style={{background:active?`${color}22`:'rgba(255,255,255,.05)',border:`1.5px solid ${active?color:'rgba(255,255,255,.1)'}`,borderRadius:50,padding:'.55rem 1.1rem',color:active?color:'rgba(255,255,255,.45)',cursor:'pointer',fontSize:'.88rem',fontWeight:active?700:400,boxShadow:active?`0 0 12px ${color}44`:'none',transition:'all .2s'}}>
+                {emoji} {label}
+              </button>;
+            })}
+          </div>
+        </div>
+
+        {/* Orientación */}
+        <div style={{marginBottom:'1.5rem'}}>
+          <Label>Tu orientación *</Label>
+          <div style={{display:'flex',gap:'.65rem',flexWrap:'wrap'}}>
+            {ORIENTATIONS.map(({id,emoji,label})=>{
+              const active=form.orientation===id;
+              return <button key={id} onClick={()=>setForm(p=>({...p,orientation:active?'':id}))}
+                style={{background:active?`${NEON.purple}22`:'rgba(255,255,255,.05)',border:`1.5px solid ${active?NEON.purple:'rgba(255,255,255,.1)'}`,borderRadius:50,padding:'.55rem 1.1rem',color:active?NEON.purple:'rgba(255,255,255,.45)',cursor:'pointer',fontSize:'.88rem',fontWeight:active?700:400,boxShadow:active?`0 0 12px ${NEON.purple}44`:'none',transition:'all .2s',fontFamily:'Inter,sans-serif'}}>
+                {emoji} {label}
+              </button>;
+            })}
+          </div>
+        </div>
+
+        {err && <p style={{color:NEON.pink,fontSize:'.85rem',marginBottom:'1rem',textAlign:'center',fontFamily:'Inter,sans-serif'}}>{err}</p>}
+        <PrimaryBtn onClick={handleCreate}>🚀 ¡Entrar a la noche!</PrimaryBtn>
+
+        <p style={{textAlign:'center',marginTop:'1.25rem',color:NEON.gold2,fontSize:'.88rem',fontFamily:'Inter,sans-serif'}}>
+          ¿Ya tienes perfil?{' '}
+          <span onClick={()=>{ setErr(''); setScreen('login'); }} style={{color:NEON.cyan2,cursor:'pointer',fontWeight:700,textShadow:`0 0 8px ${NEON.cyan}66`}}>Iniciar sesión</span>
+        </p>
+      </div>
+    </div>
+  );
+
+  // ══════════════════════════════════════════════════════════
+  // PAYWALL — MURO DE ACCESO POR CÓDIGO
+  // ══════════════════════════════════════════════════════════
+  if (screen==='paywall') {
+    return (
+      <div style={base}>
+        <NeonBg/>
+        <div style={{position:'relative',zIndex:3,maxWidth:420,margin:'0 auto',padding:'2.25rem 1.5rem',minHeight:'100vh',display:'flex',flexDirection:'column',justifyContent:'center'}}>
+          {/* Candado + titulo */}
+          <div style={{textAlign:'center',marginBottom:'1.5rem'}}>
+            <div style={{fontSize:'3rem',marginBottom:'.5rem',filter:`drop-shadow(0 0 16px ${NEON.cyan})`}}>🔒</div>
+            <h2 style={{margin:'0 0 .5rem',fontSize:'1.5rem',fontWeight:800,color:NEON.cyan,textShadow:`0 0 14px ${NEON.cyan}`,fontFamily:'Inter,sans-serif',letterSpacing:'.5px'}}>ACCESO A LA NOCHE</h2>
+            <p style={{margin:0,color:NEON.gold2,fontSize:'.88rem',fontFamily:'Inter,sans-serif',opacity:.9,lineHeight:1.5}}>
+              El portero ingresará el código de acceso para que puedas ver los perfiles
+            </p>
+          </div>
+
+          {/* Instruccion */}
+          <div style={{...glass,padding:'1.25rem',marginBottom:'1.25rem',border:`1px solid ${NEON.gold}44`,textAlign:'center'}}>
+            <p style={{margin:'0 0 .55rem',color:'#fff',fontSize:'.95rem',fontWeight:700,fontFamily:'Inter,sans-serif'}}>💳 ¿Cómo entro?</p>
+            <p style={{margin:0,color:'rgba(255,255,255,.7)',fontSize:'.85rem',lineHeight:1.6,fontFamily:'Inter,sans-serif'}}>
+              Paga tu entrada de <b style={{color:NEON.cyan2}}>{ENTRY_PRICE}</b> al portero —
+              en efectivo o por Nequi al <b style={{color:NEON.cyan2}}>{NEQUI_NUMBER}</b>.
+              <br/><br/>
+              <span style={{color:NEON.gold2}}>📲 Entrégale tu celular al portero: él ingresará el código de acceso para desbloquear tu noche.</span>
+            </p>
+          </div>
+
+          {/* Ingresar codigo */}
+          <div style={{...glass,padding:'1.4rem 1.25rem',marginBottom:'1rem',border:`1px solid ${NEON.cyan}55`}}>
+            <Label>Código de acceso (lo ingresa el portero)</Label>
+            <input
+              value={accessCode}
+              onChange={e=>{ setAccessCode(e.target.value.toUpperCase()); setAccessErr(''); }}
+              placeholder="• • • • •"
+              style={{...inp,textAlign:'center',letterSpacing:'4px',fontWeight:800,fontSize:'1.3rem',textTransform:'uppercase'}}
+              onKeyDown={e=>e.key==='Enter'&&redeemCode()}
+            />
+            {accessErr && <p style={{color:NEON.pink,fontSize:'.83rem',margin:'.7rem 0 0',textAlign:'center',fontFamily:'Inter,sans-serif'}}>{accessErr}</p>}
+            <button onClick={redeemCode} style={{width:'100%',marginTop:'1rem',background:`linear-gradient(135deg,${NEON.cyan2},${NEON.cyan})`,border:'none',borderRadius:50,padding:'.95rem',color:'#021014',fontSize:'1rem',fontWeight:800,cursor:'pointer',boxShadow:`0 0 22px ${NEON.cyan}99`,fontFamily:'Inter,sans-serif'}}>
+              🔓 Entrar a la noche
+            </button>
+          </div>
+
+          <div style={{textAlign:'center',marginTop:'.5rem'}}>
+            <p style={{color:'rgba(255,255,255,.3)',fontSize:'.74rem',fontFamily:'Inter,sans-serif'}}>🔒 Solo el portero conoce el código</p>
+            <button onClick={()=>{ setScreen('welcome'); setPendingProfile(null); setAccessCode(''); setAccessErr(''); }}
+              style={{background:'none',border:'none',color:NEON.gold2,fontSize:'.85rem',cursor:'pointer',marginTop:'.5rem',fontFamily:'Inter,sans-serif'}}>← Volver al inicio</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+
+  // ══════════════════════════════════════════════════════════
+  // OWNER — PANEL DE DUEÑO (contador de registros)
+  // ══════════════════════════════════════════════════════════
+  if (screen==='owner') {
+    const total = profiles.length;
+    // Conteo por orientación
+    const byOri = ORIENTATIONS.map(o=>({ ...o, count: profiles.filter(p=>p.orientation===o.id).length }));
+    // Conteo por mesa (agrupa "3A","3B" → mesa "3")
+    const tableGroups = {};
+    profiles.forEach(p=>{
+      const num = (p.table||'').replace(/[A-Za-z]+$/,'') || '?';
+      tableGroups[num] = (tableGroups[num]||0)+1;
+    });
+    const tableList = Object.entries(tableGroups).sort((a,b)=>b[1]-a[1]);
+    return (
+      <div style={{...base,paddingBottom:30}}>
+        <NeonBg/>
+        <div style={{position:'relative',zIndex:3,maxWidth:460,margin:'0 auto',padding:'2rem 1.5rem',minHeight:'100vh'}}>
+          <button onClick={()=>setScreen('home')} style={{background:'none',border:'none',color:NEON.gold2,cursor:'pointer',fontSize:'.9rem',marginBottom:'1rem',padding:0,fontFamily:'Inter,sans-serif'}}>← Salir</button>
+
+          <div style={{textAlign:'center',marginBottom:'1.5rem'}}>
+            <div style={{fontSize:'2.6rem',marginBottom:'.3rem'}}>👑</div>
+            <h2 style={{margin:0,fontSize:'1.5rem',fontWeight:800,background:`linear-gradient(90deg,${NEON.gold2},${NEON.gold})`,WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',backgroundClip:'text',fontFamily:'Inter,sans-serif'}}>Panel de Dueño</h2>
+            <p style={{margin:'.25rem 0 0',color:NEON.cyan2,fontSize:'.82rem',fontFamily:'Inter,sans-serif',opacity:.8}}>Registros de la noche · en vivo</p>
+          </div>
+
+          {/* Contador principal */}
+          <div style={{...glass,padding:'1.7rem 1.25rem',marginBottom:'1.1rem',textAlign:'center',border:`2px solid ${NEON.cyan}`,boxShadow:`0 0 30px ${NEON.cyan}66`}}>
+            <p style={{margin:'0 0 .2rem',color:NEON.gold2,fontSize:'.78rem',letterSpacing:'1.5px',fontFamily:'Inter,sans-serif'}}>🎟️ TOTAL DE PERFILES REGISTRADOS</p>
+            <div style={{fontSize:'3.4rem',fontWeight:900,color:'#fff',fontFamily:'Inter,sans-serif',textShadow:`0 0 22px ${NEON.cyan}`,lineHeight:1.1}}>{total}</div>
+            <p style={{margin:'.2rem 0 0',color:'rgba(255,255,255,.5)',fontSize:'.78rem',fontFamily:'Inter,sans-serif'}}>{total===1?'persona conectada':'personas conectadas'} esta noche</p>
+          </div>
+
+          {/* Desglose por orientación */}
+          <div style={{...glass,padding:'1.1rem 1.25rem',marginBottom:'1.1rem'}}>
+            <p style={{color:NEON.gold2,fontSize:'.73rem',letterSpacing:'1px',margin:'0 0 .7rem',fontFamily:'Inter,sans-serif',fontWeight:600}}>✦ POR ORIENTACIÓN</p>
+            {byOri.map(o=>(
+              <div key={o.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'.4rem 0',borderBottom:'1px solid rgba(255,255,255,.05)'}}>
+                <span style={{color:'rgba(255,255,255,.7)',fontSize:'.86rem',fontFamily:'Inter,sans-serif'}}>{o.emoji} {o.label}</span>
+                <span style={{color:NEON.purple,fontWeight:800,fontFamily:'Inter,sans-serif',textShadow:`0 0 8px ${NEON.purple}66`}}>{o.count}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Desglose por mesa */}
+          {tableList.length>0 && (
+            <div style={{...glass,padding:'1.1rem 1.25rem',marginBottom:'1.1rem'}}>
+              <p style={{color:NEON.gold2,fontSize:'.73rem',letterSpacing:'1px',margin:'0 0 .7rem',fontFamily:'Inter,sans-serif',fontWeight:600}}>✦ PERSONAS POR MESA</p>
+              <div style={{maxHeight:200,overflowY:'auto'}}>
+                {tableList.map(([num,cnt])=>(
+                  <div key={num} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'.4rem 0',borderBottom:'1px solid rgba(255,255,255,.05)'}}>
+                    <span style={{color:'rgba(255,255,255,.7)',fontSize:'.86rem',fontFamily:'Inter,sans-serif'}}>🪑 Mesa {num}</span>
+                    <span style={{color:NEON.cyan2,fontWeight:800,fontFamily:'Inter,sans-serif',textShadow:`0 0 8px ${NEON.cyan}66`}}>{cnt} {cnt===1?'persona':'personas'}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Lista de registros */}
+          {total>0 && (
+            <div style={{marginBottom:'1.25rem'}}>
+              <p style={{color:NEON.gold2,fontSize:'.73rem',letterSpacing:'1px',margin:'0 0 .6rem',fontFamily:'Inter,sans-serif',fontWeight:600}}>✦ ÚLTIMOS REGISTROS</p>
+              <div style={{display:'flex',flexDirection:'column',gap:'.5rem',maxHeight:280,overflowY:'auto'}}>
+                {[...profiles].reverse().map(p=>(
+                  <div key={p.id} style={{...glass,padding:'.6rem .85rem',display:'flex',alignItems:'center',gap:'.7rem'}}>
+                    <Avatar p={p} size={38}/>
+                    <div style={{flex:1,minWidth:0}}>
+                      <p style={{margin:0,fontSize:'.86rem',fontWeight:700,color:'#fff',fontFamily:'Inter,sans-serif',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{p.name}{p.age?`, ${p.age}`:''}</p>
+                      <p style={{margin:0,fontSize:'.72rem',color:NEON.cyan2,fontFamily:'Inter,sans-serif'}}>📍 Mesa {p.table}</p>
+                    </div>
+                    <span style={{fontSize:'.68rem',color:'rgba(255,255,255,.4)',fontFamily:'Inter,sans-serif',whiteSpace:'nowrap'}}>
+                      {p.ts ? new Date(p.ts).toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'}) : ''}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {total===0 && (
+            <p style={{textAlign:'center',color:'rgba(255,255,255,.35)',fontSize:'.85rem',fontFamily:'Inter,sans-serif',padding:'2rem 0'}}>
+              Aún no hay perfiles registrados.
+            </p>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // ══════════════════════════════════════════════════════════
+  // PROFILE DETAIL
+  // ══════════════════════════════════════════════════════════
+  if (screen==='profile' && sel) return (
+    <div style={{...base,paddingBottom:40}}>
+      <NeonBg/>
+      <div style={{position:'relative',zIndex:3,maxWidth:480,margin:'0 auto',padding:'2rem 1.5rem'}}>
+        <button onClick={()=>setScreen('main')} style={{background:'none',border:'none',color:NEON.gold2,cursor:'pointer',fontSize:'.9rem',marginBottom:'1.5rem',padding:0,fontFamily:'Inter,sans-serif'}}>← Volver</button>
+
+        <div style={{textAlign:'center',marginBottom:'2rem'}}>
+          <div style={{display:'inline-block',padding:4,borderRadius:'50%',background:`linear-gradient(135deg,${NEON.gold},${NEON.cyan},${NEON.gold})`,marginBottom:'1rem',boxShadow:`0 0 35px ${NEON.cyan}66, 0 0 50px ${NEON.gold}44`}}>
+            <Avatar p={sel} size={100}/>
+          </div>
+          <h2 style={{margin:'0 0 .2rem',fontSize:'2rem',fontWeight:600,background:`linear-gradient(90deg, ${NEON.gold2}, ${NEON.cyan2})`,WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',backgroundClip:'text',fontFamily:'"Cormorant Garamond","Playfair Display",Georgia,serif'}}>{sel.name}{sel.age?`, ${sel.age}`:''}</h2>
+          <p style={{margin:'0 0 .6rem',color:NEON.cyan2,fontSize:'.9rem',textShadow:`0 0 8px ${NEON.cyan}`,fontFamily:'Inter,sans-serif'}}>📍 Mesa {sel.table}</p>
+          {sel.orientation && <div><OrientationTag id={sel.orientation}/></div>}
+        </div>
+
+        <div style={{...glass,padding:'1.15rem',marginBottom:'1.5rem'}}>
+          <p style={{color:NEON.gold2,fontSize:'.75rem',margin:'0 0 .65rem',letterSpacing:'1px',fontFamily:'Inter,sans-serif',fontWeight:600}}>✦ BUSCA ESTA NOCHE</p>
+          <div style={{display:'flex',gap:'.5rem',flexWrap:'wrap'}}>
+            {sel.lookingFor.map(id=><Tag key={id} id={id}/>)}
+          </div>
+        </div>
+
+        <p style={{color:NEON.gold2,fontSize:'.75rem',letterSpacing:'1px',marginBottom:'.75rem',fontFamily:'Inter,sans-serif',fontWeight:600}}>✦ ENVIAR INVITACIÓN</p>
+        <div style={{display:'flex',flexDirection:'column',gap:'.7rem'}}>
+          {LOOKING.map(({id,emoji,label,color,shadow})=>{
+            const done=sent[`${sel.id}:${id}`];
+            return <button key={id} onClick={()=>!done&&handleInvite(sel,id)}
+              style={{background:done?'rgba(255,255,255,.04)':`${color}15`,border:`1.5px solid ${done?'rgba(255,255,255,.08)':color}`,borderRadius:14,padding:'1rem 1.4rem',color:done?'rgba(255,255,255,.28)':color,cursor:done?'default':'pointer',fontSize:'.97rem',fontWeight:600,textAlign:'left',boxShadow:done?'none':`0 0 16px ${shadow}40`,transition:'all .2s',display:'flex',alignItems:'center',gap:'.75rem'}}>
+              <span style={{fontSize:'1.45rem'}}>{emoji}</span>
+              <span>{done?'✓ Invitación enviada':label}</span>
+            </button>;
+          })}
+        </div>
+      </div>
+      {toast&&<div style={{position:'fixed',bottom:'2rem',left:'50%',transform:'translateX(-50%)',background:'rgba(191,95,255,.18)',border:`1px solid ${NEON.purple}`,borderRadius:12,padding:'.7rem 1.4rem',color:'#fff',fontSize:'.88rem',zIndex:100,boxShadow:`0 0 20px rgba(191,95,255,.45)`,whiteSpace:'nowrap'}}>{toast}</div>}
+    </div>
+  );
+
+  // ══════════════════════════════════════════════════════════
+  // MAIN
+  // ══════════════════════════════════════════════════════════
+  return (
+    <div style={{...base,paddingBottom:80}}>
+      <style>{`@keyframes ncPulse { 0%,100% { box-shadow: 0 0 25px rgba(255,45,120,.7), inset 0 0 15px rgba(255,45,120,.15); } 50% { box-shadow: 0 0 40px rgba(255,45,120,1), inset 0 0 25px rgba(255,45,120,.3); } }`}</style>
+      <NeonBg/>
+      <div style={{position:'relative',zIndex:3,maxWidth:720,margin:'0 auto',padding:'1.4rem 1rem 0'}}>
+
+        {/* Header */}
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'1.4rem'}}>
+          <div>
+            <h1 style={{margin:'1.75rem 0 .2rem',fontSize:'clamp(1.7rem,7vw,2.8rem)',fontWeight:900,letterSpacing:'1.5px',color:'#fff',fontFamily:'Inter,sans-serif',textShadow:`0 0 18px ${NEON.cyan}, 0 0 36px rgba(120,90,255,.6)`,lineHeight:1.1}}>ROMPEHIELO<span style={{color:NEON.cyan2}}>ENLINEA</span></h1>
+            <p style={{margin:0,color:NEON.cyan2,fontSize:'.75rem',fontFamily:'Inter,sans-serif',opacity:.7}}>{others.length} {others.length===1?'persona':'personas'} conectadas</p>
+          </div>
+          <button onClick={logout} style={{background:'rgba(8,14,24,.6)',border:`1px solid ${NEON.gold}55`,borderRadius:20,padding:'.4rem .9rem',color:NEON.gold2,fontSize:'.78rem',cursor:'pointer',fontFamily:'Inter,sans-serif'}}>Salir</button>
+        </div>
+
+        {/* ── BANNER DE INVITACIÓN EN TIEMPO REAL ── */}
+        {incoming && (() => {
+          const lf = LOOKING.find(l=>l.id===incoming.type);
+          return (
+            <div style={{...glass, padding:'1.1rem', marginBottom:'1.4rem', border:`2px solid ${lf?.color||NEON.pink}`, boxShadow:`0 0 30px ${lf?.color||NEON.pink}88, inset 0 0 20px ${lf?.color||NEON.pink}22`, animation:'ncPulse 1.6s ease-in-out infinite', position:'relative'}}>
+              <div style={{position:'absolute',top:-10,left:'50%',transform:'translateX(-50%)',background:lf?.color||NEON.pink,color:'#07070e',fontSize:'.65rem',fontWeight:800,padding:'3px 12px',borderRadius:20,letterSpacing:'.5px',boxShadow:`0 0 12px ${lf?.color||NEON.pink}`}}>✨ INVITACIÓN EN VIVO</div>
+              <button onClick={()=>setIncoming(null)} style={{position:'absolute',top:8,right:10,background:'none',border:'none',color:'rgba(255,255,255,.4)',cursor:'pointer',fontSize:'1.1rem',padding:0,lineHeight:1}}>✕</button>
+              <div style={{display:'flex',alignItems:'center',gap:'.9rem',marginTop:'.3rem'}}>
+                <Avatar p={incoming.from} size={56}/>
+                <div style={{flex:1,minWidth:0}}>
+                  <p style={{margin:0,fontWeight:800,fontSize:'1rem'}}>{incoming.from.name}{incoming.from.age?`, ${incoming.from.age}`:''}</p>
+                  <p style={{margin:'.2rem 0',color:lf?.color||NEON.purple,fontSize:'.88rem',fontWeight:600}}>{lf?.emoji} te invita a {lf?.label?.toLowerCase()}</p>
+                  <p style={{margin:0,color:NEON.cyan,fontSize:'.78rem',textShadow:`0 0 6px ${NEON.cyan}`}}>📍 Mesa {incoming.from.table}</p>
+                </div>
+              </div>
+              <div style={{display:'flex',gap:'.6rem',marginTop:'1rem'}}>
+                <button onClick={()=>handleRespond(incoming,'accepted')} style={{flex:1,background:`linear-gradient(90deg,${NEON.green},#00d96b)`,border:'none',borderRadius:12,padding:'.75rem',color:'#07070e',fontWeight:800,fontSize:'.92rem',cursor:'pointer',boxShadow:`0 0 16px ${NEON.green}88`}}>✅ Aceptar</button>
+                <button onClick={()=>handleRespond(incoming,'declined')} style={{flex:1,background:'rgba(255,255,255,.06)',border:'1px solid rgba(255,255,255,.2)',borderRadius:12,padding:'.75rem',color:'rgba(255,255,255,.8)',fontWeight:700,fontSize:'.92rem',cursor:'pointer'}}>❌ Declinar</button>
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* ── FEED ── */}
+        {tab==='feed' && (
+          <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill, minmax(115px, 1fr))',gap:'.75rem'}}>
+              {profiles.filter(p=>!me||p.id!==me.id).length===0 && me && (
+                <div style={{gridColumn:'1 / -1',textAlign:'center',padding:'2rem 1rem',color:'rgba(255,255,255,.3)'}}>
+                  <p style={{margin:0,fontSize:'.85rem'}}>Aún no hay nadie más conectado.</p>
+                  <p style={{fontSize:'.78rem',marginTop:'.4rem'}}>¡Invita a tus amigos! 🎉</p>
+                </div>
+              )}
+              {profiles.map(p=>{
+                const isMe = me && p.id===me.id;
+                const hasPending = !isMe && pendingFromIds.has(p.id);
+                return (
+                <div key={p.id}
+                  onClick={()=>{ if(isMe){ setTableCheck({open:true,value:'',err:''}); } else { setSel(p);setScreen('profile'); } }}
+                  style={{...glass,padding:'.7rem .55rem .6rem',cursor:'pointer',transition:'all .3s',
+                    border: isMe?`2px solid ${NEON.cyan}`:(hasPending?`2px solid ${NEON.pink}`:`1px solid ${NEON.gold}33`),
+                    boxShadow: isMe?`0 0 22px rgba(0,217,230,.45), inset 0 0 12px rgba(0,217,230,.08)`:(hasPending?`0 0 25px rgba(255,45,120,.7), inset 0 0 15px rgba(255,45,120,.15)`:`inset 0 0 10px rgba(232,194,117,.04)`),
+                    animation: hasPending?'ncPulse 1.6s ease-in-out infinite':'none',
+                    position:'relative'}}>
+                  {isMe && <div style={{position:'absolute',top:-8,left:'50%',transform:'translateX(-50%)',background:NEON.cyan,color:'#001a1f',fontSize:'.55rem',fontWeight:800,padding:'2px 8px',borderRadius:20,boxShadow:`0 0 10px ${NEON.cyan}`,letterSpacing:'.5px',whiteSpace:'nowrap',fontFamily:'Inter,sans-serif'}}>TÚ</div>}
+                  {hasPending && <div style={{position:'absolute',top:-8,right:-6,background:NEON.pink,color:'#fff',fontSize:'.65rem',fontWeight:800,padding:'2px 7px',borderRadius:20,boxShadow:`0 0 12px ${NEON.pink}`}}>💌</div>}
+                  <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:'.4rem'}}>
+                    <Avatar p={p} size={70}/>
+                    <div style={{textAlign:'center',width:'100%'}}>
+                      <p style={{margin:0,fontWeight:700,fontSize:'.85rem',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',fontFamily:'Inter,sans-serif'}}>{p.name}{p.age?`, ${p.age}`:''}</p>
+                      <p style={{margin:'.1rem 0 0',color:NEON.cyan2,fontSize:'.7rem',textShadow:`0 0 6px ${NEON.cyan}66`,fontFamily:'Inter,sans-serif'}}>📍 Mesa {p.table}</p>
+                    </div>
+                    {p.orientation && <OrientationTag id={p.orientation} small/>}
+                    <div style={{display:'flex',gap:'.25rem',flexWrap:'wrap',justifyContent:'center'}}>
+                      {p.lookingFor.map(id=>{const lf=LOOKING.find(l=>l.id===id);return lf?<span key={id} style={{background:`${lf.color}22`,border:`1px solid ${lf.color}44`,borderRadius:20,padding:'1px 5px',color:lf.color,fontSize:'.65rem'}}>{lf.emoji}</span>:null;})}
+                    </div>
+                    {isMe ? (
+                      <button onClick={e=>{e.stopPropagation();setTableCheck({open:true,value:'',err:''});}}
+                        style={{marginTop:2,width:'100%',background:`linear-gradient(135deg,${NEON.cyan2},${NEON.cyan})`,border:'none',borderRadius:8,padding:'.4rem',color:'#021014',fontSize:'.7rem',fontWeight:800,cursor:'pointer',boxShadow:`0 0 12px ${NEON.cyan}88`,position:'relative',fontFamily:'Inter,sans-serif'}}>
+                        📬 Mi Perfil{unread>0 && <span style={{position:'absolute',top:-5,right:-5,background:NEON.pink,color:'#fff',fontSize:'.55rem',fontWeight:800,width:16,height:16,borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',boxShadow:`0 0 8px ${NEON.pink}`}}>{unread}</span>}
+                      </button>
+                    ) : (
+                      <p style={{margin:'.15rem 0 0',color:NEON.gold2,opacity:.7,fontSize:'.62rem',fontStyle:'italic',fontFamily:'Inter,sans-serif'}}>Toca para invitar</p>
+                    )}
+                  </div>
+                </div>
+                );
+              })}
+            </div>
+        )}
+        {/* ── NOTIFICACIONES ── */}
+        {tab==='notif' && (
+          <div>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'1rem'}}>
+              <h3 style={{margin:0,fontWeight:700}}>Invitaciones</h3>
+              {unread>0&&<button onClick={markRead} style={{background:'none',border:'none',color:NEON.purple,cursor:'pointer',fontSize:'.78rem'}}>Marcar leídas</button>}
+            </div>
+            {notifs.length===0
+              ? <div style={{textAlign:'center',padding:'4rem 1rem',color:'rgba(255,255,255,.3)'}}>
+                  <div style={{fontSize:'3rem',marginBottom:'1rem'}}>💌</div>
+                  <p style={{margin:0}}>Aún no tienes invitaciones</p>
+                </div>
+              : <div style={{display:'flex',flexDirection:'column',gap:'.7rem'}}>
+                  {[...notifs].reverse().map(n=>{
+                    const lf=LOOKING.find(l=>l.id===n.type);
+                    const borderColor = n.status==='accepted' ? NEON.green : n.status==='declined' ? 'rgba(255,255,255,.15)' : (n.read?'rgba(255,255,255,.08)':lf?.color||NEON.purple);
+                    const glowColor = n.status==='accepted' ? NEON.green : (lf?.color||NEON.purple);
+                    return <div key={n.id} style={{...glass,padding:'1rem 1.15rem',border:`1px solid ${borderColor}`,boxShadow:(n.read&&n.status!=='accepted')?'none':`0 0 14px ${glowColor}33`}}>
+                      <div style={{display:'flex',alignItems:'center',gap:'.9rem'}}>
+                        <Avatar p={n.from} size={48}/>
+                        <div style={{flex:1}}>
+                          <p style={{margin:0,fontWeight:700,fontSize:'.95rem'}}>{n.from.name}{n.from.age?`, ${n.from.age}`:''}</p>
+                          {n.isResponse
+                            ? <p style={{margin:'.2rem 0',color:n.status==='accepted'?NEON.green:'rgba(255,255,255,.5)',fontSize:'.82rem'}}>
+                                {n.status==='accepted' ? `✅ Aceptó ${lf?.label?.toLowerCase()} contigo` : `❌ Declinó tu invitación a ${lf?.label?.toLowerCase()}`}
+                              </p>
+                            : <p style={{margin:'.2rem 0',color:lf?.color||NEON.purple,fontSize:'.82rem'}}>{lf?.emoji} quiere {lf?.label?.toLowerCase()} contigo</p>
+                          }
+                          <p style={{margin:0,color:NEON.cyan,fontSize:'.75rem',textShadow:`0 0 6px ${NEON.cyan}`}}>📍 Mesa {n.from.table}</p>
+                        </div>
+                        {!n.read&&!n.status&&<div style={{width:9,height:9,borderRadius:'50%',background:lf?.color||NEON.purple,boxShadow:`0 0 8px ${lf?.color||NEON.purple}`,flexShrink:0}}/>}
+                      </div>
+                      {/* Status label for already-answered invitations */}
+                      {!n.isResponse && n.status==='accepted' && <p style={{margin:'.7rem 0 0',color:NEON.green,fontSize:'.78rem',fontWeight:600,textShadow:`0 0 8px ${NEON.green}`}}>✅ Aceptaste · Encuéntrense en mesa {n.from.table}</p>}
+                      {!n.isResponse && n.status==='declined' && <p style={{margin:'.7rem 0 0',color:'rgba(255,255,255,.4)',fontSize:'.78rem'}}>Invitación declinada</p>}
+                      {/* Accept / Decline buttons */}
+                      {!n.isResponse && !n.status && (
+                        <div style={{display:'flex',gap:'.5rem',marginTop:'.85rem'}}>
+                          <button onClick={()=>handleRespond(n,'accepted')} style={{flex:1,background:`linear-gradient(90deg,${NEON.green},#00d96b)`,border:'none',borderRadius:10,padding:'.6rem',color:'#07070e',fontWeight:800,fontSize:'.85rem',cursor:'pointer',boxShadow:`0 0 14px ${NEON.green}66`}}>✅ Aceptar</button>
+                          <button onClick={()=>handleRespond(n,'declined')} style={{flex:1,background:'rgba(255,255,255,.06)',border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'.6rem',color:'rgba(255,255,255,.7)',fontWeight:600,fontSize:'.85rem',cursor:'pointer'}}>❌ Declinar</button>
+                        </div>
+                      )}
+                    </div>;
+                  })}
+                </div>
+            }
+          </div>
+        )}
+
+        {/* ── MI PERFIL ── */}
+        {tab==='me' && me && (
+          <div style={{textAlign:'center'}}>
+            <div style={{display:'inline-block',padding:4,borderRadius:'50%',background:'linear-gradient(135deg,#ff2d78,#bf5fff)',marginBottom:'1rem',boxShadow:'0 0 30px rgba(191,95,255,.45)'}}>
+              <Avatar p={me} size={88}/>
+            </div>
+            <h2 style={{margin:'0 0 .2rem',fontSize:'1.6rem',fontWeight:800}}>{me.name}{me.age?`, ${me.age}`:''}</h2>
+            <p style={{color:NEON.cyan,margin:'0 0 .5rem',fontSize:'.88rem',textShadow:`0 0 8px ${NEON.cyan}`}}>📍 Mesa {me.table}</p>
+            <div style={{display:'flex',gap:'.5rem',justifyContent:'center',flexWrap:'wrap',marginBottom:'1.75rem'}}>
+              {me.orientation && <OrientationTag id={me.orientation}/>}
+              {me.lookingFor.map(id=><Tag key={id} id={id}/>)}
+            </div>
+            <div style={{...glass,padding:'1.25rem',textAlign:'left'}}>
+              {[['Personas conectadas',others.length,NEON.green],['Invitaciones recibidas',notifs.length,NEON.purple],['Invitaciones enviadas',Object.keys(sent).length,NEON.cyan]].map(([l,v,c])=>(
+                <div key={l} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'.5rem 0',borderBottom:'1px solid rgba(255,255,255,.05)'}}>
+                  <span style={{color:'rgba(255,255,255,.45)',fontSize:'.83rem'}}>{l}</span>
+                  <span style={{color:c,fontWeight:700,textShadow:`0 0 8px ${c}`}}>{v}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ── BOTÓN FLOTANTE: PEDIR LICOR ── */}
+      <button onClick={()=>setLiquorOrder({open:true,item:'',sent:false})}
+        style={{position:'fixed',bottom:78,right:18,zIndex:55,background:`linear-gradient(135deg,${NEON.gold2},${NEON.gold},${NEON.goldDark})`,border:'none',borderRadius:50,padding:'.8rem 1.15rem',color:'#1a1000',fontSize:'.9rem',fontWeight:800,cursor:'pointer',boxShadow:`0 0 25px ${NEON.gold}aa, inset 0 1px 0 rgba(255,255,255,.4)`,display:'flex',alignItems:'center',gap:'.4rem',fontFamily:'Inter,sans-serif',letterSpacing:'.3px'}}>
+        🍾 Pedir licor
+      </button>
+
+      {/* Bottom Nav */}
+      <div style={{position:'fixed',bottom:0,left:0,right:0,background:'rgba(2,6,12,.92)',borderTop:`1px solid ${NEON.gold}33`,padding:'.65rem 1rem',display:'flex',justifyContent:'space-around',zIndex:50,backdropFilter:'blur(20px)'}}>
+        {[{id:'feed',emoji:'🎭',label:'Explorar'},{id:'notif',emoji:'💌',label:'Invitaciones',badge:unread},{id:'me',emoji:'👤',label:'Mi perfil'}].map(t=>(
+          <button key={t.id} onClick={()=>setTab(t.id)} style={{background:'none',border:'none',cursor:'pointer',display:'flex',flexDirection:'column',alignItems:'center',gap:2,position:'relative',minWidth:60,padding:'.2rem 0',fontFamily:'Inter,sans-serif'}}>
+            <span style={{fontSize:'1.35rem',filter:tab===t.id?`drop-shadow(0 0 8px ${NEON.cyan})`:'none',transition:'filter .2s'}}>{t.emoji}</span>
+            <span style={{fontSize:'.7rem',color:tab===t.id?NEON.cyan2:NEON.gold2,fontWeight:tab===t.id?700:500,textShadow:tab===t.id?`0 0 8px ${NEON.cyan}66`:'none'}}>{t.label}</span>
+            {t.badge>0&&<div style={{position:'absolute',top:-2,right:8,width:16,height:16,borderRadius:'50%',background:NEON.pink,color:'#fff',fontSize:'.62rem',fontWeight:700,display:'flex',alignItems:'center',justifyContent:'center',boxShadow:`0 0 8px ${NEON.pink}`}}>{t.badge}</div>}
+          </button>
+        ))}
+      </div>
+
+      {/* ── MODAL: PEDIR LICOR ── */}
+      {liquorOrder.open && (() => {
+        const LIQUORS = [
+          { id:'cerveza',    emoji:'🍺', name:'Cerveza' },
+          { id:'cocteles',   emoji:'🍹', name:'Cócteles' },
+          { id:'vino',       emoji:'🍷', name:'Vino' },
+          { id:'whisky',     emoji:'🥃', name:'Whisky' },
+          { id:'champagne',  emoji:'🍾', name:'Champagne' },
+          { id:'tequila',    emoji:'🪩', name:'Tequila' },
+          { id:'ron',        emoji:'🥥', name:'Ron' },
+          { id:'agua',       emoji:'💧', name:'Agua' },
+        ];
+        return (
+          <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.8)',backdropFilter:'blur(10px)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:200,padding:'1.25rem'}} onClick={()=>setLiquorOrder({open:false,item:'',sent:false})}>
+            <div onClick={e=>e.stopPropagation()} style={{...glass,padding:'1.75rem 1.5rem',maxWidth:420,width:'100%',border:`2px solid ${NEON.gold}`,boxShadow:`0 0 40px ${NEON.gold}66`,textAlign:'center',maxHeight:'85vh',overflowY:'auto'}}>
+              {!liquorOrder.sent ? <>
+                <div style={{fontSize:'2.6rem',marginBottom:'.5rem',filter:`drop-shadow(0 0 14px ${NEON.gold})`}}>🍾</div>
+                <h2 style={{margin:'0 0 .4rem',fontSize:'1.7rem',fontWeight:600,background:`linear-gradient(90deg, ${NEON.gold2}, ${NEON.gold})`,WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',backgroundClip:'text',fontFamily:'"Cormorant Garamond","Playfair Display",Georgia,serif'}}>Pedir licor a tu mesa</h2>
+                <p style={{margin:'0 0 1.25rem',color:NEON.cyan2,fontSize:'.88rem',fontFamily:'Inter,sans-serif',opacity:.85}}>📍 Mesa {me?.table} · Elige tu bebida</p>
+
+                <div style={{display:'grid',gridTemplateColumns:'repeat(4, 1fr)',gap:'.55rem',marginBottom:'1.25rem'}}>
+                  {LIQUORS.map(l=>{
+                    const active = liquorOrder.item===l.id;
+                    return <button key={l.id} onClick={()=>setLiquorOrder(p=>({...p,item:l.id}))}
+                      style={{background:active?`${NEON.gold}22`:'rgba(8,14,24,.6)',border:`1.5px solid ${active?NEON.gold:NEON.gold+'33'}`,borderRadius:12,padding:'.7rem .3rem',cursor:'pointer',display:'flex',flexDirection:'column',alignItems:'center',gap:4,transition:'all .2s',boxShadow:active?`0 0 14px ${NEON.gold}66`:'none',fontFamily:'Inter,sans-serif'}}>
+                      <span style={{fontSize:'1.6rem'}}>{l.emoji}</span>
+                      <span style={{fontSize:'.65rem',color:active?NEON.gold2:'rgba(255,255,255,.7)',fontWeight:active?700:500}}>{l.name}</span>
+                    </button>;
+                  })}
+                </div>
+
+                <div style={{display:'flex',gap:'.6rem'}}>
+                  <button onClick={()=>setLiquorOrder({open:false,item:'',sent:false})} style={{flex:1,background:'rgba(255,255,255,.06)',border:'1px solid rgba(255,255,255,.15)',borderRadius:12,padding:'.8rem',color:'rgba(255,255,255,.7)',fontWeight:600,fontSize:'.9rem',cursor:'pointer',fontFamily:'Inter,sans-serif'}}>Cancelar</button>
+                  <button onClick={()=>{ if(liquorOrder.item) setLiquorOrder(p=>({...p,sent:true})); }}
+                    disabled={!liquorOrder.item}
+                    style={{flex:1.4,background:liquorOrder.item?`linear-gradient(135deg,${NEON.gold2},${NEON.gold},${NEON.goldDark})`:'rgba(255,255,255,.08)',border:'none',borderRadius:12,padding:'.8rem',color:liquorOrder.item?'#1a1000':'rgba(255,255,255,.3)',fontWeight:800,fontSize:'.9rem',cursor:liquorOrder.item?'pointer':'not-allowed',boxShadow:liquorOrder.item?`0 0 16px ${NEON.gold}99`:'none',fontFamily:'Inter,sans-serif'}}>
+                    Enviar pedido al bar →
+                  </button>
+                </div>
+              </> : <>
+                <div style={{fontSize:'3.5rem',marginBottom:'.75rem',filter:`drop-shadow(0 0 20px ${NEON.green})`,animation:'ncPulse 1.5s ease-in-out infinite'}}>✅</div>
+                <h2 style={{margin:'0 0 .5rem',fontSize:'1.6rem',fontWeight:600,color:NEON.green,textShadow:`0 0 12px ${NEON.green}`,fontFamily:'"Cormorant Garamond","Playfair Display",Georgia,serif'}}>¡Pedido enviado!</h2>
+                <p style={{margin:'0 0 .5rem',color:NEON.gold2,fontSize:'.95rem',fontFamily:'Inter,sans-serif'}}>
+                  {LIQUORS.find(l=>l.id===liquorOrder.item)?.emoji} {LIQUORS.find(l=>l.id===liquorOrder.item)?.name}
+                </p>
+                <p style={{margin:'0 0 1.5rem',color:NEON.cyan2,fontSize:'.85rem',fontFamily:'Inter,sans-serif',opacity:.85}}>El mesero llevará tu pedido a la mesa {me?.table} 🥂</p>
+                <button onClick={()=>setLiquorOrder({open:false,item:'',sent:false})}
+                  style={{width:'100%',background:`linear-gradient(135deg,${NEON.cyan2},${NEON.cyan})`,border:'none',borderRadius:12,padding:'.85rem',color:'#021014',fontWeight:800,fontSize:'.95rem',cursor:'pointer',boxShadow:`0 0 14px ${NEON.cyan}88`,fontFamily:'Inter,sans-serif'}}>Listo ✨</button>
+              </>}
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ── MODAL: VERIFICACIÓN DE MESA ── */}
+      {tableCheck.open && (
+        <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.75)',backdropFilter:'blur(8px)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:200,padding:'1.5rem'}} onClick={()=>setTableCheck({open:false,value:'',err:''})}>
+          <div onClick={e=>e.stopPropagation()} style={{...glass,padding:'2rem 1.75rem',maxWidth:380,width:'100%',border:`2px solid ${NEON.cyan}`,boxShadow:`0 0 40px ${NEON.cyan}66`,textAlign:'center'}}>
+            <div style={{fontSize:'2.5rem',marginBottom:'.7rem',filter:`drop-shadow(0 0 12px ${NEON.cyan})`}}>🔐</div>
+            <h2 style={{margin:'0 0 .4rem',fontSize:'1.4rem',fontWeight:800,color:NEON.cyan,textShadow:`0 0 10px ${NEON.cyan}`}}>Verifica que eres tú</h2>
+            <p style={{margin:'0 0 1.4rem',color:'rgba(255,255,255,.5)',fontSize:'.85rem'}}>Ingresa el número de mesa que registraste para abrir tu perfil</p>
+            <input
+              type="text"
+              autoFocus
+              placeholder="Número de mesa"
+              value={tableCheck.value}
+              onChange={e=>setTableCheck(t=>({...t,value:e.target.value,err:''}))}
+              onKeyDown={e=>{
+                if(e.key==='Enter'){
+                  if(tableCheck.value.trim().toLowerCase()===me?.table?.toLowerCase()){
+                    setTableCheck({open:false,value:'',err:''});
+                    setTab('notif');
+                  } else {
+                    setTableCheck(t=>({...t,err:'Número de mesa incorrecto'}));
+                  }
+                }
+              }}
+              style={{...inp,textAlign:'center',fontSize:'1.1rem',letterSpacing:'2px',fontWeight:700}}
+            />
+            {tableCheck.err && <p style={{color:NEON.pink,fontSize:'.82rem',margin:'.7rem 0 0'}}>{tableCheck.err}</p>}
+            <div style={{display:'flex',gap:'.6rem',marginTop:'1.3rem'}}>
+              <button onClick={()=>setTableCheck({open:false,value:'',err:''})} style={{flex:1,background:'rgba(255,255,255,.06)',border:'1px solid rgba(255,255,255,.15)',borderRadius:12,padding:'.75rem',color:'rgba(255,255,255,.7)',fontWeight:600,fontSize:'.9rem',cursor:'pointer'}}>Cancelar</button>
+              <button onClick={()=>{
+                if(tableCheck.value.trim().toLowerCase()===me?.table?.toLowerCase()){
+                  setTableCheck({open:false,value:'',err:''});
+                  setTab('notif');
+                } else {
+                  setTableCheck(t=>({...t,err:'Número de mesa incorrecto'}));
+                }
+              }} style={{flex:1,background:`linear-gradient(135deg,${NEON.cyan},#00b8d4)`,border:'none',borderRadius:12,padding:'.75rem',color:'#001a1f',fontWeight:800,fontSize:'.9rem',cursor:'pointer',boxShadow:`0 0 14px ${NEON.cyan}88`}}>Abrir perfil →</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {toast&&<div style={{position:'fixed',bottom:90,left:'50%',transform:'translateX(-50%)',background:'rgba(191,95,255,.18)',border:`1px solid ${NEON.purple}`,borderRadius:12,padding:'.65rem 1.35rem',color:'#fff',fontSize:'.86rem',zIndex:100,boxShadow:`0 0 20px rgba(191,95,255,.45)`,whiteSpace:'nowrap'}}>{toast}</div>}
+    </div>
+  );
+}
+
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<NightConnect />);
+</script>
+</body>
+</html>
