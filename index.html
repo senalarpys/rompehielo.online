@@ -254,6 +254,7 @@ function NightConnect() {
   const [form, setForm]   = useState({name:'',age:'',table:'',seat:'',lookingFor:[],photo:null,orientation:''});
   const [login, setLogin] = useState({name:'',table:''});
   const [resetGate, setResetGate] = useState({ open:false, key:'', err:'', done:false }); // reiniciar app
+  const [submitting, setSubmitting] = useState(false);
 
   const showToast = msg => { setToast(msg); setTimeout(()=>setToast(null),3200); };
 
@@ -336,6 +337,7 @@ function NightConnect() {
 
   // ── CREATE PROFILE ───────────────────────────────────────
   const handleCreate = async () => {
+    if (submitting) return;
     if (!form.name.trim())          return setErr('Ingresa tu nombre');
     if (!form.table.trim())         return setErr('Ingresa el número de mesa');
     if (!form.seat)                 return setErr('Selecciona tu puesto en la mesa (A, B, C...)');
@@ -343,20 +345,22 @@ function NightConnect() {
     if (!form.photo)                return setErr('Sube una foto para tu perfil');
     if (!form.orientation)          return setErr('Selecciona tu orientación');
     setErr('');
+    setSubmitting(true);
     const fullTable = form.table.trim() + form.seat;
     try {
-      // Verificar nombre y puesto únicos
       const check = await fetch(`${SUPABASE_URL}/rest/v1/profiles?select=name,table_seat&or=(name.ilike.${encodeURIComponent(form.name.trim())},table_seat.ilike.${encodeURIComponent(fullTable)})`, { headers: sbHeaders });
       const existing = await check.json();
-      if (existing.some(p=>p.name?.toLowerCase()===form.name.trim().toLowerCase()))
-        return setErr('Ya existe un perfil con ese nombre. Inicia sesión.');
-      if (existing.some(p=>p.table_seat?.toLowerCase()===fullTable.toLowerCase()))
-        return setErr(`El puesto ${fullTable} ya está ocupado. Elige otra letra.`);
-    } catch { return setErr('Error de conexión. Revisa tu internet.'); }
-    // Perfil en memoria — se guardará en la nube al validar el código
+      if (existing.some(p=>p.name?.toLowerCase()===form.name.trim().toLowerCase())) {
+        setSubmitting(false); return setErr('Ya existe un perfil con ese nombre. Inicia sesión.');
+      }
+      if (existing.some(p=>p.table_seat?.toLowerCase()===fullTable.toLowerCase())) {
+        setSubmitting(false); return setErr(`El puesto ${fullTable} ya está ocupado. Elige otra letra.`);
+      }
+    } catch { setSubmitting(false); return setErr('Error de conexión. Revisa tu internet.'); }
     const p = { id:`u${Date.now()}`, name:form.name.trim(), age:form.age, table:fullTable, lookingFor:form.lookingFor, photo:form.photo, orientation:form.orientation, paid:false, ts:Date.now() };
     setPendingProfile(p);
     setAccessCode(''); setAccessErr('');
+    setSubmitting(false);
     setScreen('paywall');
   };
 
@@ -372,10 +376,11 @@ function NightConnect() {
 
   // ── VALIDAR CÓDIGO DE ACCESO ─────────────────────────────
   const redeemCode = async () => {
-    if (!pendingProfile) return;
+    if (!pendingProfile || submitting) return;
     const typed = accessCode.trim().toUpperCase();
     if (!typed) { setAccessErr('El portero debe ingresar el código de acceso'); return; }
     if (typed !== ACCESS_CODE) { setAccessErr('Código incorrecto. Verifícalo con el portero.'); return; }
+    setSubmitting(true);
     try {
       const body = {
         user_id: pendingProfile.id, name: pendingProfile.name, age: pendingProfile.age,
@@ -396,15 +401,16 @@ function NightConnect() {
         });
         saved = (await res.json())[0];
       }
-      if (!res.ok || !saved) { setAccessErr('Error al guardar. Intenta de nuevo.'); return; }
+      if (!res.ok || !saved) { setSubmitting(false); setAccessErr('Error al guardar. Intenta de nuevo.'); return; }
       const unlocked = rowToProfile(saved);
       setMe(unlocked);
       setScreen('loading');
       await loadProfiles();
       await loadNotifs(unlocked.id);
       setPendingProfile(null);
+      setSubmitting(false);
       setScreen('main');
-    } catch { setAccessErr('Error de conexión. Revisa tu internet.'); }
+    } catch { setSubmitting(false); setAccessErr('Error de conexión. Revisa tu internet.'); }
   };
 
   // ── INVITE ───────────────────────────────────────────────
@@ -793,7 +799,9 @@ function NightConnect() {
         </div>
 
         {err && <p style={{color:NEON.pink,fontSize:'.85rem',marginBottom:'1rem',textAlign:'center',fontFamily:'Inter,sans-serif'}}>{err}</p>}
-        <PrimaryBtn onClick={handleCreate}>🚀 ¡Entrar a la noche!</PrimaryBtn>
+        <PrimaryBtn onClick={handleCreate} disabled={submitting} style={{opacity:submitting?.5:1,cursor:submitting?'not-allowed':'pointer'}}>
+          {submitting ? '⏳ Verificando...' : '🚀 ¡Entrar a la noche!'}
+        </PrimaryBtn>
 
         <p style={{textAlign:'center',marginTop:'1.25rem',color:NEON.gold2,fontSize:'.88rem',fontFamily:'Inter,sans-serif'}}>
           ¿Ya tienes perfil?{' '}
@@ -842,8 +850,8 @@ function NightConnect() {
               onKeyDown={e=>e.key==='Enter'&&redeemCode()}
             />
             {accessErr && <p style={{color:NEON.pink,fontSize:'.83rem',margin:'.7rem 0 0',textAlign:'center',fontFamily:'Inter,sans-serif'}}>{accessErr}</p>}
-            <button onClick={redeemCode} style={{width:'100%',marginTop:'1rem',background:`linear-gradient(135deg,${NEON.cyan2},${NEON.cyan})`,border:'none',borderRadius:50,padding:'.95rem',color:'#021014',fontSize:'1rem',fontWeight:800,cursor:'pointer',boxShadow:`0 0 22px ${NEON.cyan}99`,fontFamily:'Inter,sans-serif'}}>
-              🔓 Entrar a la noche
+            <button onClick={redeemCode} disabled={submitting} style={{width:'100%',marginTop:'1rem',background:`linear-gradient(135deg,${NEON.cyan2},${NEON.cyan})`,border:'none',borderRadius:50,padding:'.95rem',color:'#021014',fontSize:'1rem',fontWeight:800,cursor:submitting?'not-allowed':'pointer',boxShadow:`0 0 22px ${NEON.cyan}99`,fontFamily:'Inter,sans-serif',opacity:submitting?.5:1}}>
+              {submitting ? '⏳ Validando...' : '🔓 Entrar a la noche'}
             </button>
           </div>
 
