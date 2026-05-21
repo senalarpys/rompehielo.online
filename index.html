@@ -102,6 +102,7 @@ function NeonBg() {
       @keyframes ncFacet { 0%,100%{opacity:.6} 50%{opacity:1} }
       @keyframes ncSparkle { 0%,100%{opacity:0;transform:scale(.3)} 50%{opacity:1;transform:scale(1)} }
       @keyframes ncFadeUp { 0%{opacity:0;transform:translateY(20px)} 100%{opacity:1;transform:translateY(0)} }
+      @keyframes pulse { 0%,100%{opacity:.3;transform:scale(.7)} 50%{opacity:1;transform:scale(1.2)} }
     `}</style>
     {/* Cielo profundo del espacio */}
     <div style={{position:'fixed',inset:0,background:'radial-gradient(ellipse at 50% 35%, #0d1a35 0%, #060a1a 38%, #02040a 78%, #010205 100%)',zIndex:0,pointerEvents:'none'}}/>
@@ -231,7 +232,7 @@ function PrimaryBtn({ onClick, children, style={} }) {
 }
 
 function NightConnect() {
-  const [screen, setScreen] = useState('home'); // home|welcome|login|create|paywall|main|profile|owner
+  const [screen, setScreen] = useState('home'); // home|welcome|login|create|paywall|loading|main|profile|owner
   const [ownerGate, setOwnerGate] = useState({ open:false, key:'', err:'' }); // login dueño
   const [me, setMe]         = useState(null);
   const [profiles, setProfiles] = useState([]);
@@ -398,6 +399,7 @@ function NightConnect() {
       if (!res.ok || !saved) { setAccessErr('Error al guardar. Intenta de nuevo.'); return; }
       const unlocked = rowToProfile(saved);
       setMe(unlocked);
+      setScreen('loading');
       await loadProfiles();
       await loadNotifs(unlocked.id);
       setPendingProfile(null);
@@ -857,6 +859,29 @@ function NightConnect() {
 
 
   // ══════════════════════════════════════════════════════════
+  // LOADING — Pantalla de carga entre formulario y main
+  // ══════════════════════════════════════════════════════════
+  if (screen==='loading') return (
+    <div style={{...base,display:'flex',alignItems:'center',justifyContent:'center'}}>
+      <NeonBg/>
+      <div style={{position:'relative',zIndex:3,display:'flex',flexDirection:'column',alignItems:'center',gap:'1.5rem',textAlign:'center',padding:'2rem'}}>
+        <div style={{fontSize:'3.5rem',animation:'ncFadeUp .6s ease-out both'}}>🎉</div>
+        <h2 style={{margin:0,fontSize:'1.6rem',fontWeight:900,color:'#fff',fontFamily:'Inter,sans-serif',textShadow:`0 0 18px ${NEON.cyan}`,animation:'ncFadeUp .6s ease-out .1s both'}}>
+          ¡Ya estás dentro!
+        </h2>
+        <p style={{margin:0,color:NEON.cyan2,fontSize:'1rem',fontFamily:'Inter,sans-serif',animation:'ncFadeUp .6s ease-out .2s both'}}>
+          Cargando perfiles de la noche...
+        </p>
+        <div style={{display:'flex',gap:'.5rem',marginTop:'.5rem',animation:'ncFadeUp .6s ease-out .3s both'}}>
+          {[0,1,2].map(i=>(
+            <div key={i} style={{width:10,height:10,borderRadius:'50%',background:NEON.cyan2,boxShadow:`0 0 10px ${NEON.cyan}`,animation:`pulse 1.2s ease-in-out ${i*0.2}s infinite`}}/>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+
+  // ══════════════════════════════════════════════════════════
   // OWNER — PANEL DE DUEÑO (contador de registros)
   // ══════════════════════════════════════════════════════════
   if (screen==='owner') {
@@ -941,7 +966,60 @@ function NightConnect() {
               Aún no hay perfiles registrados.
             </p>
           )}
+
+          {/* ── REINICIAR LA NOCHE ── */}
+          <div style={{marginTop:'1.5rem',borderTop:`1px solid ${NEON.pink}33`,paddingTop:'1.5rem'}}>
+            <p style={{color:'rgba(255,255,255,.45)',fontSize:'.74rem',letterSpacing:'1px',margin:'0 0 .8rem',fontFamily:'Inter,sans-serif',fontWeight:600,textAlign:'center'}}>⚠️ ZONA DE ADMINISTRACIÓN</p>
+            <button
+              onClick={()=>setResetGate({open:true,key:'',err:'',done:false})}
+              style={{width:'100%',background:`linear-gradient(135deg,#7a0020,#d6246a)`,border:`1px solid ${NEON.pink}`,borderRadius:14,padding:'1rem',color:'#fff',fontWeight:800,fontSize:'1rem',cursor:'pointer',boxShadow:`0 0 20px ${NEON.pink}55`,fontFamily:'Inter,sans-serif',letterSpacing:'.5px'}}>
+              🧹 Reiniciar perfiles — Nueva rumba
+            </button>
+            <p style={{textAlign:'center',color:'rgba(255,255,255,.3)',fontSize:'.72rem',fontFamily:'Inter,sans-serif',margin:'.6rem 0 0'}}>Borra todos los perfiles e invitaciones</p>
+          </div>
         </div>
+
+        {/* ── MODAL REINICIO (desde panel admin) ── */}
+        {resetGate.open && (
+          <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.85)',backdropFilter:'blur(10px)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:300,padding:'1.5rem'}} onClick={()=>setResetGate({open:false,key:'',err:'',done:false})}>
+            <div onClick={e=>e.stopPropagation()} style={{...glass,padding:'1.9rem 1.6rem',maxWidth:370,width:'100%',border:`2px solid ${NEON.pink}`,boxShadow:`0 0 40px ${NEON.pink}55`,textAlign:'center'}}>
+              {!resetGate.done ? <>
+                <div style={{fontSize:'2.4rem',marginBottom:'.4rem'}}>🧹</div>
+                <h2 style={{margin:'0 0 .35rem',fontSize:'1.3rem',fontWeight:800,color:NEON.pink,fontFamily:'Inter,sans-serif'}}>Reiniciar la app</h2>
+                <p style={{margin:'0 0 1.1rem',color:'rgba(255,255,255,.55)',fontSize:'.82rem',fontFamily:'Inter,sans-serif',lineHeight:1.5}}>
+                  Esto <b>borra TODOS los perfiles e invitaciones</b>. Ingresa la clave para confirmar.
+                </p>
+                <input
+                  type="password"
+                  autoFocus
+                  value={resetGate.key}
+                  onChange={e=>setResetGate(s=>({...s,key:e.target.value,err:''}))}
+                  placeholder="Clave de reinicio"
+                  style={{...inp,textAlign:'center',letterSpacing:'2px',fontWeight:700}}
+                  onKeyDown={e=>{
+                    if(e.key==='Enter'){
+                      if(resetGate.key.trim()===RESET_KEY) resetApp();
+                      else setResetGate(s=>({...s,err:'Clave incorrecta'}));
+                    }
+                  }}
+                />
+                {resetGate.err && <p style={{color:NEON.pink,fontSize:'.82rem',margin:'.7rem 0 0',fontFamily:'Inter,sans-serif'}}>{resetGate.err}</p>}
+                <div style={{display:'flex',gap:'.6rem',marginTop:'1.2rem'}}>
+                  <button onClick={()=>setResetGate({open:false,key:'',err:'',done:false})} style={{flex:1,background:'rgba(255,255,255,.06)',border:'1px solid rgba(255,255,255,.15)',borderRadius:12,padding:'.75rem',color:'rgba(255,255,255,.7)',fontWeight:600,fontSize:'.88rem',cursor:'pointer',fontFamily:'Inter,sans-serif'}}>Cancelar</button>
+                  <button onClick={()=>{
+                    if(resetGate.key.trim()===RESET_KEY) resetApp();
+                    else setResetGate(s=>({...s,err:'Clave incorrecta'}));
+                  }} style={{flex:1.3,background:`linear-gradient(135deg,${NEON.pink},#d6246a)`,border:'none',borderRadius:12,padding:'.75rem',color:'#fff',fontWeight:800,fontSize:'.88rem',cursor:'pointer',boxShadow:`0 0 14px ${NEON.pink}88`,fontFamily:'Inter,sans-serif'}}>🧹 Borrar todo</button>
+                </div>
+              </> : <>
+                <div style={{fontSize:'3rem',marginBottom:'.5rem'}}>✅</div>
+                <h2 style={{margin:'0 0 .4rem',fontSize:'1.3rem',fontWeight:800,color:NEON.green,fontFamily:'Inter,sans-serif'}}>App reiniciada</h2>
+                <p style={{margin:'0 0 1.2rem',color:'rgba(255,255,255,.6)',fontSize:'.85rem',fontFamily:'Inter,sans-serif'}}>Todos los perfiles fueron borrados. Ya puedes llenar la app de nuevo.</p>
+                <button onClick={()=>{ setResetGate({open:false,key:'',err:'',done:false}); setScreen('home'); }} style={{width:'100%',background:`linear-gradient(135deg,${NEON.cyan2},${NEON.cyan})`,border:'none',borderRadius:12,padding:'.8rem',color:'#021014',fontWeight:800,fontSize:'.9rem',cursor:'pointer',fontFamily:'Inter,sans-serif'}}>Listo ✨</button>
+              </>}
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -999,7 +1077,7 @@ function NightConnect() {
         {/* Header */}
         <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'1.4rem'}}>
           <div>
-            <h1 style={{margin:'1.75rem 0 .2rem',fontSize:'clamp(1.7rem,7vw,2.8rem)',fontWeight:900,letterSpacing:'1.5px',color:'#ff2222',fontFamily:'Inter,sans-serif',textShadow:`0 0 18px #ff0000, 0 0 36px rgba(255,0,0,.6)`,lineHeight:1.1}}>ROMPEHIELO<span style={{color:'#ff5555'}}>ENLINEA</span></h1>
+            <h1 style={{margin:'1.75rem 0 .2rem',fontSize:'clamp(1.7rem,7vw,2.8rem)',fontWeight:900,letterSpacing:'1.5px',color:'#fff',fontFamily:'Inter,sans-serif',textShadow:`0 0 18px ${NEON.cyan}, 0 0 36px rgba(120,90,255,.6)`,lineHeight:1.1}}>ROMPEHIELO<span style={{color:NEON.cyan2}}>ENLINEA</span></h1>
             <p style={{margin:0,color:NEON.cyan2,fontSize:'.75rem',fontFamily:'Inter,sans-serif',opacity:.7}}>{others.length} {others.length===1?'persona':'personas'} conectadas</p>
           </div>
           <button onClick={logout} style={{background:'rgba(8,14,24,.6)',border:`1px solid ${NEON.gold}55`,borderRadius:20,padding:'.4rem .9rem',color:NEON.gold2,fontSize:'.78rem',cursor:'pointer',fontFamily:'Inter,sans-serif'}}>Salir</button>
