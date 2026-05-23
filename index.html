@@ -92,11 +92,19 @@ function NeonBg() {
       @keyframes ncWave      { 0%,100%{opacity:.55;stroke-dashoffset:0} 50%{opacity:1;stroke-dashoffset:-8} }
     `}</style>
     {/* Fondo discoteca */}
-    <div style={{position:'fixed',inset:0,zIndex:0,pointerEvents:'none'}}>
-      <img src="disco.jpg.png" alt="" style={{width:'100%',height:'100%',objectFit:'cover',objectPosition:'center',display:'block'}}/>
+    <div style={{position:'fixed',inset:0,zIndex:0,pointerEvents:'none',overflow:'hidden'}}>
+      <img src="disco.jpg.png" alt=""
+        style={{
+          position:'absolute',top:'50%',left:'50%',
+          transform:'translate(-50%,-50%)',
+          minWidth:'100%',minHeight:'100%',
+          width:'auto',height:'auto',
+          objectFit:'cover',objectPosition:'center top',
+          display:'block'
+        }}/>
     </div>
-    {/* Overlay para legibilidad */}
-    <div style={{position:'fixed',inset:0,background:'rgba(2,1,10,.5)',zIndex:1,pointerEvents:'none'}}/>
+    {/* Overlay gradiente para legibilidad — más oscuro arriba y abajo */}
+    <div style={{position:'fixed',inset:0,background:'linear-gradient(180deg,rgba(2,1,10,.55) 0%,rgba(2,1,10,.3) 40%,rgba(2,1,10,.3) 60%,rgba(2,1,10,.65) 100%)',zIndex:1,pointerEvents:'none'}}/>
   </>;
 }
 
@@ -445,10 +453,6 @@ function NightConnect() {
       <NeonBg/>
       <div style={{position:'relative',zIndex:3,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',minHeight:'100vh',padding:'2rem 1.5rem',textAlign:'center'}}>
 
-        {/* Logo esfera cristal */}
-        <div style={{animation:'ncFadeUp 1s ease-out'}}>
-          <DiscoBall size={190}/>
-        </div>
 
         {/* Nombre */}
         <h1 style={{margin:'1.75rem 0 .2rem',fontSize:'clamp(1.7rem,7vw,2.8rem)',fontWeight:900,letterSpacing:'1.5px',color:'#fff',fontFamily:'Inter,sans-serif',textShadow:`0 0 18px ${NEON.cyan}, 0 0 36px rgba(120,90,255,.6)`,animation:'ncFadeUp 1s ease-out .2s both',lineHeight:1.1}}>
@@ -593,7 +597,6 @@ function NightConnect() {
       <NeonBg/>
       <div style={{position:'relative',zIndex:3,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'flex-start',minHeight:'100vh',padding:'1.5rem 1.5rem 2rem',textAlign:'center'}}>
         <button onClick={()=>setScreen('home')} style={{alignSelf:'flex-start',background:'none',border:'none',color:NEON.gold2,cursor:'pointer',fontSize:'.9rem',padding:0,marginBottom:'.5rem',fontFamily:'Inter,sans-serif'}}>← Inicio</button>
-        <DiscoBall size={130}/>
         <h1 style={{margin:'1.75rem 0 .2rem',fontSize:'clamp(1.7rem,7vw,2.8rem)',fontWeight:900,letterSpacing:'1.5px',color:'#fff',fontFamily:'Inter,sans-serif',textShadow:`0 0 18px ${NEON.cyan}, 0 0 36px rgba(120,90,255,.6)`,lineHeight:1.1}}>
           ROMPEHIELO<span style={{color:NEON.cyan2}}>ENLINEA</span>
         </h1>
@@ -634,7 +637,6 @@ function NightConnect() {
         <button onClick={()=>setScreen('welcome')} style={{background:'none',border:'none',color:NEON.gold2,cursor:'pointer',fontSize:'.9rem',marginBottom:'2rem',padding:0,textAlign:'left',fontFamily:'Inter,sans-serif'}}>← Volver</button>
 
         <div style={{textAlign:'center',marginBottom:'2.5rem'}}>
-          <div style={{marginBottom:'.5rem'}}><DiscoBall size={95}/></div>
           <h2 style={{margin:0,fontSize:'2.2rem',fontWeight:600,background:`linear-gradient(90deg, ${NEON.gold2}, ${NEON.gold}, ${NEON.cyan2})`,WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',backgroundClip:'text',fontFamily:'"Cormorant Garamond","Playfair Display",Georgia,serif',letterSpacing:'-.5px'}}>Bienvenido de vuelta</h2>
           <p style={{color:NEON.cyan2,margin:'.5rem 0 0',fontSize:'.9rem',fontFamily:'Inter,sans-serif',textShadow:`0 0 8px ${NEON.cyan}44`}}>Ingresa con tu nombre y número de mesa</p>
         </div>
@@ -669,7 +671,6 @@ function NightConnect() {
       <div style={{position:'relative',zIndex:3,maxWidth:480,margin:'0 auto',padding:'2rem 1.5rem',minHeight:'100vh'}}>
         <button onClick={()=>setScreen('welcome')} style={{background:'none',border:'none',color:NEON.gold2,cursor:'pointer',fontSize:'.9rem',marginBottom:'.5rem',padding:0,fontFamily:'Inter,sans-serif'}}>← Volver</button>
         <div style={{display:'flex',flexDirection:'column',alignItems:'center',marginBottom:'.5rem'}}>
-          <DiscoBall size={90}/>
         </div>
         <h2 style={{margin:'0 0 .2rem',fontSize:'2.2rem',fontWeight:600,background:`linear-gradient(90deg, ${NEON.gold2}, ${NEON.gold}, ${NEON.cyan2})`,WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',backgroundClip:'text',fontFamily:'"Cormorant Garamond","Playfair Display",Georgia,serif',letterSpacing:'-.5px',textAlign:'center'}}>Crea tu perfil</h2>
         <p style={{color:NEON.cyan2,margin:'0 0 1.75rem',fontSize:'.9rem',fontFamily:'Inter,sans-serif',textAlign:'center'}}>Así te verán esta noche ✨</p>
