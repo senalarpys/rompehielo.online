@@ -73,89 +73,55 @@ const inp = { width:'100%', background:'rgba(10,15,25,.6)', border:'1px solid rg
 
 // ── FONDO UNIVERSO: estrellas + nebulosa sutil ──
 function NeonBg() {
-  // Estrellas con posiciones determinísticas distribuidas por la pantalla
   const stars = [
-    ...Array.from({length:70},(_,i)=>({
-      x: (i*37 + 13) % 100,
-      y: (i*53 + 7) % 100,
-      r: 0.08 + ((i*17) % 10) / 100,
-      o: 0.3 + ((i*23) % 60) / 100,
-      delay: (i*0.3) % 4
-    })),
-    ...Array.from({length:18},(_,i)=>({
-      x: (i*73 + 29) % 100,
-      y: (i*41 + 19) % 100,
-      r: 0.18 + ((i*11) % 8) / 50,
-      o: 0.7 + ((i*7) % 30) / 100,
-      delay: (i*0.5) % 5,
-      bright: true
-    })),
+    ...Array.from({length:70},(_,i)=>({x:(i*37+13)%100,y:(i*53+7)%100,r:0.08+((i*17)%10)/100,o:0.3+((i*23)%60)/100,delay:(i*0.3)%4})),
+    ...Array.from({length:18},(_,i)=>({x:(i*73+29)%100,y:(i*41+19)%100,r:0.18+((i*11)%8)/50,o:0.7+((i*7)%30)/100,delay:(i*0.5)%5,bright:true})),
   ];
   return <>
     <style>{`
       @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Inter:wght@400;500;600;700;800;900&display=swap');
-      @keyframes ncSpin { 0%{transform:rotate(0)} 100%{transform:rotate(360deg)} }
-      @keyframes ncTwinkle { 0%,100%{opacity:var(--o,.5)} 50%{opacity:.1} }
-      @keyframes ncDrift { 0%,100%{transform:translate(0,0)} 50%{transform:translate(12px,-10px)} }
-      @keyframes ncFloat { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-10px)} }
+      @keyframes ncSpin      { 0%{transform:rotate(0)} 100%{transform:rotate(360deg)} }
+      @keyframes ncTwinkle   { 0%,100%{opacity:var(--o,.5)} 50%{opacity:.1} }
+      @keyframes ncDrift     { 0%,100%{transform:translate(0,0)} 50%{transform:translate(12px,-10px)} }
+      @keyframes ncFloat     { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-10px)} }
       @keyframes ncGlowPulse { 0%,100%{opacity:.55;transform:scale(.95)} 50%{opacity:1;transform:scale(1.08)} }
-      @keyframes ncFacet { 0%,100%{opacity:.6} 50%{opacity:1} }
-      @keyframes ncSparkle { 0%,100%{opacity:0;transform:scale(.3)} 50%{opacity:1;transform:scale(1)} }
-      @keyframes ncFadeUp { 0%{opacity:0;transform:translateY(20px)} 100%{opacity:1;transform:translateY(0)} }
-      @keyframes pulse { 0%,100%{opacity:.3;transform:scale(.7)} 50%{opacity:1;transform:scale(1.2)} }
+      @keyframes ncFacet     { 0%,100%{opacity:.6} 50%{opacity:1} }
+      @keyframes ncSparkle   { 0%,100%{opacity:0;transform:scale(.3)} 50%{opacity:1;transform:scale(1)} }
+      @keyframes ncFadeUp    { 0%{opacity:0;transform:translateY(20px)} 100%{opacity:1;transform:translateY(0)} }
+      @keyframes pulse       { 0%,100%{opacity:.3;transform:scale(.7)} 50%{opacity:1;transform:scale(1.2)} }
+      @keyframes ncWave      { 0%,100%{opacity:.55;stroke-dashoffset:0} 50%{opacity:1;stroke-dashoffset:-8} }
     `}</style>
-    {/* Cielo profundo del espacio */}
-    <div style={{position:'fixed',inset:0,background:'radial-gradient(ellipse at 50% 35%, #0d1a35 0%, #060a1a 38%, #02040a 78%, #010205 100%)',zIndex:0,pointerEvents:'none'}}/>
-
-    {/* Nebulosa azul-violeta arriba a la izquierda */}
-    <div style={{position:'fixed',top:'-12%',left:'-18%',width:'75vw',height:'75vw',maxWidth:900,maxHeight:900,background:'radial-gradient(ellipse,rgba(70,90,200,.16) 0%,rgba(100,60,180,.07) 35%,transparent 65%)',pointerEvents:'none',zIndex:1,filter:'blur(45px)',animation:'ncDrift 20s ease-in-out infinite'}}/>
-
-    {/* Nebulosa cian-violeta abajo a la derecha */}
-    <div style={{position:'fixed',bottom:'-12%',right:'-18%',width:'70vw',height:'70vw',maxWidth:850,maxHeight:850,background:'radial-gradient(ellipse,rgba(0,150,200,.13) 0%,rgba(120,70,200,.06) 40%,transparent 70%)',pointerEvents:'none',zIndex:1,filter:'blur(45px)',animation:'ncDrift 25s ease-in-out infinite reverse'}}/>
-
-    {/* Brillo dorado muy tenue al centro */}
-    <div style={{position:'fixed',top:'28%',left:'50%',transform:'translateX(-50%)',width:'45vw',height:'45vw',maxWidth:450,maxHeight:450,background:'radial-gradient(circle,rgba(232,194,117,.07) 0%,transparent 65%)',pointerEvents:'none',zIndex:1,filter:'blur(35px)'}}/>
-
-    {/* Estrellas */}
-    <svg viewBox="0 0 100 100" preserveAspectRatio="none" style={{position:'fixed',inset:0,width:'100vw',height:'100vh',pointerEvents:'none',zIndex:2}}>
-      {stars.map((s,i)=>(
-        <circle key={i} cx={s.x} cy={s.y} r={s.r}
-          fill={s.bright?'#ffffff':'#dde4ff'}
-          style={{
-            opacity: s.o,
-            animation: `ncTwinkle ${3+s.delay}s ease-in-out infinite`,
-            animationDelay: `${s.delay}s`,
-            filter: s.bright ? 'drop-shadow(0 0 0.4px #ffffff)' : 'none'
-          }}/>
-      ))}
-    </svg>
+    {/* Fondo discoteca */}
+    <div style={{position:'fixed',inset:0,zIndex:0,pointerEvents:'none'}}>
+      <img src="disco.jpg.png" alt="" style={{width:'100%',height:'100%',objectFit:'cover',objectPosition:'center',display:'block'}}/>
+    </div>
+    {/* Overlay para legibilidad */}
+    <div style={{position:'fixed',inset:0,background:'rgba(2,1,10,.5)',zIndex:1,pointerEvents:'none'}}/>
   </>;
 }
 
 // ── ESFERA DE CRISTAL FACETADO (logo animado) ──
 function DiscoBall({ size=140 }) {
-  // Facetas del cristal (triángulos) — coords sobre viewBox 100x100, círculo r~38 centrado en 50,50
   const facets = [
-    { p:'50,12 72,26 58,42',         c:'#5ee9f0' },
-    { p:'72,26 84,48 62,46',         c:'#2bb8e8' },
-    { p:'50,12 58,42 38,38',         c:'#a45cff' },
-    { p:'50,12 38,38 28,26',         c:'#ff5fc8' },
-    { p:'28,26 38,38 24,52',         c:'#bf5fff' },
-    { p:'38,38 58,42 50,58',         c:'#7d8cff' },
-    { p:'58,42 62,46 50,58',         c:'#3ed8e0' },
-    { p:'62,46 84,48 72,68',         c:'#1f9fd4' },
-    { p:'62,46 72,68 50,58',         c:'#5ee9f0' },
-    { p:'24,52 38,38 50,58',         c:'#9b6cff' },
-    { p:'24,52 50,58 34,72',         c:'#c44de8' },
-    { p:'50,58 72,68 56,82',         c:'#3ed8e0' },
-    { p:'50,58 56,82 34,72',         c:'#ff6fd0' },
-    { p:'34,72 56,82 44,88',         c:'#a45cff' },
-    { p:'72,26 50,12 62,18',         c:'#7de8ff' },
-    { p:'84,48 72,68 88,56',         c:'#1f9fd4' },
+    { p:'50,12 72,26 58,42', c:'#5ee9f0' },
+    { p:'72,26 84,48 62,46', c:'#2bb8e8' },
+    { p:'50,12 58,42 38,38', c:'#a45cff' },
+    { p:'50,12 38,38 28,26', c:'#ff5fc8' },
+    { p:'28,26 38,38 24,52', c:'#bf5fff' },
+    { p:'38,38 58,42 50,58', c:'#7d8cff' },
+    { p:'58,42 62,46 50,58', c:'#3ed8e0' },
+    { p:'62,46 84,48 72,68', c:'#1f9fd4' },
+    { p:'62,46 72,68 50,58', c:'#5ee9f0' },
+    { p:'24,52 38,38 50,58', c:'#9b6cff' },
+    { p:'24,52 50,58 34,72', c:'#c44de8' },
+    { p:'50,58 72,68 56,82', c:'#3ed8e0' },
+    { p:'50,58 56,82 34,72', c:'#ff6fd0' },
+    { p:'34,72 56,82 44,88', c:'#a45cff' },
+    { p:'72,26 50,12 62,18', c:'#7de8ff' },
+    { p:'84,48 72,68 88,56', c:'#1f9fd4' },
   ];
   return (
     <div style={{width:size,height:size,position:'relative',margin:'0 auto',animation:'ncFloat 5s ease-in-out infinite'}}>
-      {/* Halo exterior pulsante */}
       <div style={{position:'absolute',inset:'-25%',background:'radial-gradient(circle, rgba(120,90,255,.35) 0%, rgba(0,217,230,.18) 40%, transparent 70%)',borderRadius:'50%',animation:'ncGlowPulse 3.5s ease-in-out infinite',filter:'blur(8px)'}}/>
       <div style={{width:'100%',height:'100%',position:'relative',filter:'drop-shadow(0 0 18px rgba(120,90,255,.7)) drop-shadow(0 0 32px rgba(0,217,230,.5))'}}>
         <svg viewBox="0 0 100 100" style={{width:'100%',height:'100%',animation:'ncSpin 22s linear infinite'}}>
@@ -166,27 +132,22 @@ function DiscoBall({ size=140 }) {
               <stop offset="100%" stopColor="#1a1a3a" stopOpacity="0.2"/>
             </radialGradient>
           </defs>
-          {/* base de la esfera */}
           <circle cx="50" cy="50" r="39" fill="url(#crystalCore)"/>
-          {/* facetas de cristal */}
           {facets.map((f,i)=>(
             <polygon key={i} points={f.p} fill={f.c}
               stroke="rgba(255,255,255,.55)" strokeWidth="0.4" strokeLinejoin="round"
-              style={{opacity:0.82, animation:`ncFacet ${2.5+(i%5)*0.4}s ease-in-out infinite`, animationDelay:`${i*0.18}s`}}/>
+              style={{opacity:0.82,animation:`ncFacet ${2.5+(i%5)*0.4}s ease-in-out infinite`,animationDelay:`${i*0.18}s`}}/>
           ))}
-          {/* brillo superior */}
           <ellipse cx="40" cy="32" rx="9" ry="5" fill="#ffffff" opacity="0.7"/>
-          {/* destello central */}
           <circle cx="50" cy="50" r="4" fill="#ffffff" opacity="0.85" style={{animation:'ncFacet 2s ease-in-out infinite'}}/>
         </svg>
-        {/* Partículas flotantes alrededor */}
         <svg viewBox="0 0 100 100" style={{position:'absolute',inset:0,width:'100%',height:'100%',overflow:'visible'}}>
           {[
-            {x:18,y:30,r:1.4,c:'#5ee9f0',d:0},   {x:84,y:38,r:1.1,c:'#ff6fd0',d:0.6},
-            {x:24,y:74,r:1.2,c:'#bf5fff',d:1.2},  {x:78,y:72,r:1.5,c:'#5ee9f0',d:0.3},
-            {x:50,y:8,r:1,c:'#ffffff',d:0.9},     {x:12,y:52,r:1.1,c:'#a45cff',d:1.5},
-            {x:90,y:54,r:1,c:'#3ed8e0',d:0.4},    {x:46,y:92,r:1.3,c:'#ff6fd0',d:1.1},
-            {x:66,y:16,r:0.9,c:'#7de8ff',d:1.8},  {x:32,y:18,r:1,c:'#c44de8',d:0.7},
+            {x:18,y:30,r:1.4,c:'#5ee9f0',d:0},  {x:84,y:38,r:1.1,c:'#ff6fd0',d:0.6},
+            {x:24,y:74,r:1.2,c:'#bf5fff',d:1.2}, {x:78,y:72,r:1.5,c:'#5ee9f0',d:0.3},
+            {x:50,y:8, r:1,  c:'#ffffff', d:0.9}, {x:12,y:52,r:1.1,c:'#a45cff',d:1.5},
+            {x:90,y:54,r:1,  c:'#3ed8e0', d:0.4}, {x:46,y:92,r:1.3,c:'#ff6fd0',d:1.1},
+            {x:66,y:16,r:0.9,c:'#7de8ff',d:1.8}, {x:32,y:18,r:1,  c:'#c44de8',d:0.7},
           ].map((s,i)=>(
             <circle key={i} cx={s.x} cy={s.y} r={s.r} fill={s.c}
               style={{animation:`ncSparkle ${2.2+s.d}s ease-in-out infinite`,animationDelay:`${s.d}s`,filter:`drop-shadow(0 0 2px ${s.c})`}}/>
