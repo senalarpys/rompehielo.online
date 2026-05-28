@@ -678,7 +678,7 @@ function NightConnect() {
         {/* ── FOTO DE PERFIL — destacada ── */}
         <div style={{...glass,padding:'1.5rem 1.25rem',marginBottom:'1.5rem',textAlign:'center',border:`1px solid ${NEON.gold}44`,boxShadow:`0 0 18px rgba(232,194,117,.1), inset 0 0 20px rgba(232,194,117,.04)`}}>
           <p style={{color:NEON.gold2,fontSize:'.75rem',margin:'0 0 1rem',letterSpacing:'1.5px',fontFamily:'Inter,sans-serif',fontWeight:600}}>✦ TU MEJOR FOTO DE LA NOCHE ✦</p>
-          <label style={{cursor:'pointer',display:'inline-block',position:'relative'}}>
+          <label style={{cursor:'pointer',display:'inline-block',position:'relative',WebkitTapHighlightColor:'transparent'}}>
             {form.photo
               ? <div style={{position:'relative'}}>
                   <div style={{width:120,height:120,borderRadius:'50%',overflow:'hidden',border:`3px solid ${NEON.gold}`,boxShadow:`0 0 30px ${NEON.gold}99, 0 0 50px ${NEON.cyan}44`,margin:'0 auto'}}>
@@ -691,10 +691,12 @@ function NightConnect() {
                   <span style={{fontSize:'.68rem',color:NEON.gold2,fontFamily:'Inter,sans-serif',fontWeight:600,letterSpacing:'.5px'}}>TOCA AQUÍ</span>
                 </div>
             }
-            <input type="file" accept="image/*" style={{display:'none'}} onChange={e=>{
-              const f=e.target.files[0]; if(!f) return;
-              const r=new FileReader(); r.onload=ev=>setForm(p=>({...p,photo:ev.target.result})); r.readAsDataURL(f);
-            }}/>
+            <input type="file" accept="image/*,image/heic,image/heif,image/jpeg,image/png,image/webp"
+              style={{position:'absolute',opacity:0,width:'0.1px',height:'0.1px',overflow:'hidden',pointerEvents:'none'}}
+              onChange={e=>{
+                const f=e.target.files[0]; if(!f) return;
+                const r=new FileReader(); r.onload=ev=>setForm(p=>({...p,photo:ev.target.result})); r.readAsDataURL(f);
+              }}/>
           </label>
           <p style={{color:NEON.cyan2,opacity:.7,fontSize:'.78rem',margin:'.85rem 0 0',fontFamily:'Inter,sans-serif',fontStyle:'italic'}}>
             {form.photo ? '✨ Te ves increíble — toca para cambiar' : 'Elige una foto donde te veas espectacular'}
