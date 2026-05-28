@@ -303,6 +303,12 @@ function NightConnect() {
     return ()=>clearInterval(iv);
   },[screen]);
 
+  // Puente vanilla JS → React para la foto (evita que Babel bloquee en iPhone)
+  useEffect(()=>{
+    window.__ncSetPhoto = (dataUrl) => setForm(p=>({...p, photo:dataUrl}));
+    return ()=>{ delete window.__ncSetPhoto; };
+  }, []);
+
   // ── LOGIN ────────────────────────────────────────────────
   const handleLogin = async () => {
     setErr('');
@@ -700,22 +706,16 @@ function NightConnect() {
           <p style={{color:NEON.gold2,fontSize:'.75rem',margin:'0 0 1rem',letterSpacing:'1.5px',fontFamily:'Inter,sans-serif',fontWeight:600}}>✦ TU MEJOR FOTO DE LA NOCHE ✦</p>
           <div style={{display:'inline-block',position:'relative'}}>
             <input
-              ref={photoInputRef}
-              id="nc-photo-input"
+              id="foto-perfil"
               type="file"
               accept="image/*"
               style={{display:'none'}}
-              onChange={async e=>{
-                const f=e.target.files[0]; if(!f) return;
-                const compressed = await compressPhoto(f);
-                setForm(p=>({...p,photo:compressed}));
-              }}
             />
-            <label htmlFor="nc-photo-input" style={{display:'block',cursor:'pointer',WebkitTapHighlightColor:'transparent'}}>
+            <label htmlFor="foto-perfil" style={{display:'block',cursor:'pointer',WebkitTapHighlightColor:'transparent'}}>
               {form.photo
                 ? <div style={{position:'relative'}}>
                     <div style={{width:120,height:120,borderRadius:'50%',overflow:'hidden',border:`3px solid ${NEON.gold}`,boxShadow:`0 0 30px ${NEON.gold}99, 0 0 50px ${NEON.cyan}44`,margin:'0 auto'}}>
-                      <img src={form.photo} style={{width:'100%',height:'100%',objectFit:'cover'}}/>
+                      <img id="vista-previa-foto" src={form.photo} style={{width:'100%',height:'100%',objectFit:'cover'}}/>
                     </div>
                     <div style={{position:'absolute',bottom:-4,right:'calc(50% - 70px)',background:NEON.cyan,color:'#021014',width:34,height:34,borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'1rem',boxShadow:`0 0 12px ${NEON.cyan}99`,border:'2px solid #02060c'}}>✎</div>
                   </div>
@@ -1345,6 +1345,55 @@ function NightConnect() {
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(<NightConnect />);
+</script>
+
+<!-- ── FOTO DE PERFIL: JavaScript nativo — sin Babel — máxima compatibilidad iPhone ── -->
+<script>
+(function() {
+  var MAX_SIZE_MB = 15;
+
+  function compressNative(file, callback) {
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      var img = new Image();
+      img.onload = function() {
+        var MAX = 900;
+        var w = img.width, h = img.height;
+        if (w > h && w > MAX) { h = Math.round(h * MAX / w); w = MAX; }
+        else if (h > MAX)     { w = Math.round(w * MAX / h); h = MAX; }
+        var canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        callback(canvas.toDataURL('image/jpeg', 0.75));
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  document.addEventListener('change', function(e) {
+    if (e.target.id !== 'foto-perfil') return;
+    var file = e.target.files && e.target.files[0];
+    if (!file) return;
+
+    if (file.size > MAX_SIZE_MB * 1024 * 1024) {
+      alert('La imagen es demasiado grande. Elige una foto más pequeña.');
+      e.target.value = '';
+      return;
+    }
+
+    compressNative(file, function(dataUrl) {
+      // Actualiza React state
+      if (typeof window.__ncSetPhoto === 'function') {
+        window.__ncSetPhoto(dataUrl);
+      }
+      // Actualiza el DOM directamente para preview instantáneo en iPhone
+      var preview = document.getElementById('vista-previa-foto');
+      if (preview) { preview.src = dataUrl; }
+    });
+  });
+})();
 </script>
 </body>
 </html>
